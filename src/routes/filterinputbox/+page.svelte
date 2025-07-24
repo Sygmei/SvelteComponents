@@ -78,7 +78,9 @@
     currentFilters = filters;
   }
 
-  function isStandardFilter(filter: Filter): filter is {
+  function isStandardFilter(
+    filter: Filter
+  ): filter is {
     field: string;
     comparator: string;
     value: string;

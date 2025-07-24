@@ -86,13 +86,20 @@
   async function updateSuggestionsForInput(input: string): Promise<void> {
     suggestionsHaveLoaded = false;
     console.log("Updating suggestions for input:", input);
+
+    const fieldNames = getFieldNames();
+
     if (!input.trim()) {
-      showSuggestions = false;
+      // Show all fields when input is empty (on focus)
+      currentPart = "field";
+      suggestions = fieldNames;
+      showSuggestions = suggestions.length > 0;
+      selectedIndex = 0;
+      suggestionsHaveLoaded = true;
       return;
     }
 
     const parts = input.split(/\s+/);
-    const fieldNames = getFieldNames();
 
     if (parts.length === 1) {
       currentPart = "field";
@@ -156,6 +163,18 @@
 
   async function selectSuggestion(suggestion: string): Promise<void> {
     const parts = inputValue.split(/\s+/);
+
+    // Check if we're in value mode and the current value matches the suggestion
+    if (currentPart === "value") {
+      const currentValue = parts.slice(2).join(" ");
+
+      if (currentValue === suggestion) {
+        // Value matches suggestion exactly - add as filter instead of selecting
+        addFilter();
+        return;
+      }
+    }
+
     let newInputValue: string;
 
     if (currentPart === "field") {
@@ -215,7 +234,9 @@
     onFiltersChange(filters);
   }
 
-  function isStandardFilter(filter: Filter): filter is {
+  function isStandardFilter(
+    filter: Filter
+  ): filter is {
     field: string;
     comparator: Comparator;
     value: string;
@@ -226,7 +247,7 @@
 
   async function handleKeydown(event: KeyboardEvent): Promise<void> {
     if (!showSuggestions) {
-      // No suggestions showing - handle Enter to add filter
+      // No suggestions showing - handle special keys
       if (event.key === "Enter" && inputValue.trim()) {
         event.preventDefault();
         if (!suggestionsHaveLoaded && currentPart === "value") {
@@ -235,6 +256,15 @@
           return;
         }
         addFilter();
+      } else if (
+        event.key === "Backspace" &&
+        !inputValue.trim() &&
+        filters.length > 0
+      ) {
+        // Delete last filter when backspace on empty input
+        event.preventDefault();
+        const lastFilter = filters[filters.length - 1];
+        removeFilter(lastFilter.id);
       }
       return;
     }
