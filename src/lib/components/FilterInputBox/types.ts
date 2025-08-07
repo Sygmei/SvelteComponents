@@ -39,5 +39,6 @@ export interface FilterInputBoxProps {
   comparators?: Comparator[];
   fieldComparators?: Record<string, Comparator[]>;
   fetchValues?: (field: string, query: string) => Promise<string[]>;
+  filters?: Filter[];
   onFiltersChange?: (filters: Filter[]) => void;
 }

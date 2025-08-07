@@ -23,21 +23,32 @@
     ],
     fieldComparators = {},
     fetchValues = async () => [],
+    filters = $bindable<Filter[]>([]),
     onFiltersChange = () => {},
   }: Props = $props();
 
   let inputValue = $state("");
-  let filters = $state<Filter[]>([]);
   let showSuggestions = $state(false);
   let suggestions = $state<string[]>([]);
   let currentPart = $state<"field" | "comparator" | "value">("field");
   let selectedIndex = $state(0);
   let inputElement: HTMLInputElement;
   let debounceTimer: number;
+  let blurTimer: number;
 
   let currentField = $state("");
   let currentComparator = $state<Comparator | "">("");
   let suggestionsHaveLoaded = $state(false);
+
+  // Exposed method for programmatic filter addition
+  export function addFilterProgrammatically(filter: Omit<Filter, "id">): void {
+    const newFilter: Filter = {
+      ...filter,
+      id: Date.now() + Math.random(), // Ensure unique ID
+    };
+    filters = [...filters, newFilter];
+    onFiltersChange(filters);
+  }
 
   // Helper function to get field names
   function getFieldNames(): string[] {
@@ -164,17 +175,6 @@
   async function selectSuggestion(suggestion: string): Promise<void> {
     const parts = inputValue.split(/\s+/);
 
-    // Check if we're in value mode and the current value matches the suggestion
-    if (currentPart === "value") {
-      const currentValue = parts.slice(2).join(" ");
-
-      if (currentValue === suggestion) {
-        // Value matches suggestion exactly - add as filter instead of selecting
-        addFilter();
-        return;
-      }
-    }
-
     let newInputValue: string;
 
     if (currentPart === "field") {
@@ -182,7 +182,14 @@
     } else if (currentPart === "comparator") {
       newInputValue = parts[0] + " " + suggestion + " ";
     } else if (currentPart === "value") {
+      // For value completion, create the complete filter and add it immediately
       newInputValue = parts[0] + " " + parts[1] + " " + suggestion;
+      inputValue = newInputValue;
+      showSuggestions = false;
+      
+      // Automatically create the tag
+      addFilter();
+      return;
     } else {
       newInputValue = inputValue;
     }
@@ -213,9 +220,10 @@
       const newFilter: Filter = { field, comparator, value, id: Date.now() };
       filters = [...filters, newFilter];
       inputValue = "";
-      showSuggestions = false;
-      suggestions = [];
       onFiltersChange(filters);
+      
+      // Show field suggestions for the next filter
+      updateSuggestions();
     } else {
       // Not a valid field comparator value format - treat as value-only filter
       const value = inputValue.trim();
@@ -223,9 +231,10 @@
       const newFilter: Filter = { value, id: Date.now() };
       filters = [...filters, newFilter];
       inputValue = "";
-      showSuggestions = false;
-      suggestions = [];
       onFiltersChange(filters);
+      
+      // Show field suggestions for the next filter
+      updateSuggestions();
     }
   }
 
@@ -234,9 +243,7 @@
     onFiltersChange(filters);
   }
 
-  function isStandardFilter(
-    filter: Filter
-  ): filter is {
+  function isStandardFilter(filter: Filter): filter is {
     field: string;
     comparator: Comparator;
     value: string;
@@ -316,43 +323,63 @@
         break;
     }
   }
+
+  function handleFocus(): void {
+    // Clear any pending blur timer
+    clearTimeout(blurTimer);
+    updateSuggestions();
+  }
+
+  function handleBlur(): void {
+    // Delay hiding suggestions to allow for clicks on suggestion buttons
+    blurTimer = setTimeout(() => {
+      showSuggestions = false;
+      selectedIndex = 0;
+    }, 150);
+  }
 </script>
 
 <div class="relative w-full max-w-2xl">
   <div
-    class="flex flex-wrap gap-2 p-3 border border-gray-300 rounded-lg bg-white min-h-[44px] focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500"
+    class="flex flex-wrap gap-2 p-3 border border-surface-300 dark:border-surface-600 rounded-2xl bg-surface-50 dark:bg-surface-900 min-h-[44px] focus-within:border-primary-500"
   >
     {#each filters as filter (filter.id)}
       {#if isStandardFilter(filter)}
         <!-- Standard field comparator value filter -->
-        <div
-          class="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-sm"
-        >
+        <span class="chip bg-primary-500 text-white flex items-center gap-1">
           <span class="font-medium">{filter.field}</span>
-          <span class="text-blue-600">{filter.comparator}</span>
+          <span class="opacity-75">{filter.comparator}</span>
           <span>{filter.value}</span>
           <button
             type="button"
             onclick={() => removeFilter(filter.id)}
-            class="ml-1 text-blue-600 hover:text-blue-800 hover:bg-blue-200 rounded-full w-4 h-4 flex items-center justify-center text-xs"
+            class="ml-1 w-4 h-4 rounded-full flex items-center justify-center text-xs leading-none
+                   text-white/60 hover:text-white/90
+                   hover:bg-white/20
+                   transition-all duration-150 ease-out
+                   focus:outline-none focus:ring-1 focus:ring-white/40"
+            aria-label="Remove filter"
           >
             ×
           </button>
-        </div>
+        </span>
       {:else}
         <!-- Value-only filter -->
-        <div
-          class="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 rounded-md text-sm"
-        >
+        <span class="chip bg-secondary-500 text-white flex items-center gap-1">
           <span class="font-medium">{filter.value}</span>
           <button
             type="button"
             onclick={() => removeFilter(filter.id)}
-            class="ml-1 text-green-600 hover:text-green-800 hover:bg-green-200 rounded-full w-4 h-4 flex items-center justify-center text-xs"
+            class="ml-1 w-4 h-4 rounded-full flex items-center justify-center text-xs leading-none
+                   text-white/60 hover:text-white/90
+                   hover:bg-white/20
+                   transition-all duration-150 ease-out
+                   focus:outline-none focus:ring-1 focus:ring-white/40"
+            aria-label="Remove filter"
           >
             ×
           </button>
-        </div>
+        </span>
       {/if}
     {/each}
 
@@ -361,39 +388,38 @@
       bind:value={inputValue}
       onkeydown={handleKeydown}
       oninput={debouncedUpdateSuggestions}
-      onfocus={() => updateSuggestions()}
+      onfocus={handleFocus}
+      onblur={handleBlur}
       placeholder={filters.length === 0
         ? "Enter filter (e.g., name == test)"
         : ""}
-      class="flex-1 min-w-0 outline-none bg-transparent text-sm"
+      class="flex-1 min-w-0 outline-none bg-transparent text-sm text-surface-900 dark:text-surface-100 placeholder:text-surface-500 dark:placeholder:text-surface-400"
     />
   </div>
 
   {#if showSuggestions}
     <div
-      class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto"
+      class="absolute top-full left-0 right-0 mt-1 card p-2 max-h-60 overflow-y-auto z-10 border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 shadow-lg rounded-2xl"
     >
       {#each suggestions as suggestion, index}
         <button
           type="button"
           onclick={() => selectSuggestion(suggestion)}
-          class="w-full px-3 py-2 text-left hover:bg-gray-50 text-sm {index ===
-          selectedIndex
-            ? 'bg-blue-50 text-blue-600'
-            : 'text-gray-700'}"
+          class="btn w-full justify-start text-left {index === selectedIndex
+            ? 'bg-primary-500 text-white'
+            : 'hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-900 dark:text-surface-100'}"
         >
           {#if currentPart === "field"}
-            <span class="font-medium text-blue-600">{suggestion}</span>
-            <span class="text-gray-400 ml-2">field</span>
+            <span class="font-medium">{suggestion}</span>
+            <span class="opacity-60 ml-2">field</span>
           {:else if currentPart === "comparator"}
-            <span class="text-gray-600">{currentField}</span>
-            <span class="font-medium text-blue-600 mx-2">{suggestion}</span>
-            <span class="text-gray-400">comparator</span>
+            <span class="opacity-75">{currentField}</span>
+            <span class="font-medium mx-2">{suggestion}</span>
+            <span class="opacity-60">comparator</span>
           {:else}
-            <span class="text-gray-600">{currentField} {currentComparator}</span
-            >
-            <span class="font-medium text-blue-600 ml-2">{suggestion}</span>
-            <span class="text-gray-400 ml-2">value</span>
+            <span class="opacity-75">{currentField} {currentComparator}</span>
+            <span class="font-medium ml-2">{suggestion}</span>
+            <span class="opacity-60 ml-2">value</span>
           {/if}
         </button>
       {/each}
