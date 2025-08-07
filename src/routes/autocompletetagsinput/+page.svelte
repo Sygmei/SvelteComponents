@@ -149,7 +149,7 @@
   </header>
 
   <div class="space-y-10">
-    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600">
+    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600 rounded-2xl">
       <header class="space-y-2">
         <h2 class="text-2xl font-bold">Basic AutocompleteTagsInput</h2>
         <p class="text-surface-600 dark:text-surface-400">Simple tags input without autocomplete</p>
@@ -158,12 +158,12 @@
         placeholder="Enter basic tags..."
         onTagsChange={handleBasicTagsChange}
       />
-      <div class="bg-surface-200 dark:bg-surface-800 p-4 rounded-token">
+      <div class="bg-surface-200 dark:bg-surface-800 p-4 rounded-2xl">
         <code class="text-sm">Tags: {JSON.stringify(basicTags.map((t) => t.value))}</code>
       </div>
     </section>
 
-    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600">
+    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600 rounded-2xl">
       <header class="space-y-2">
         <h2 class="text-2xl font-bold">AutocompleteTagsInput with Tech Autocomplete</h2>
         <p class="text-surface-600 dark:text-surface-400">
@@ -175,12 +175,12 @@
         completer={sampleCompleter}
         onTagsChange={handleTechTagsChange}
       />
-      <div class="bg-surface-200 dark:bg-surface-800 p-4 rounded-token">
+      <div class="bg-surface-200 dark:bg-surface-800 p-4 rounded-2xl">
         <code class="text-sm">Tags: {JSON.stringify(techTags.map((t) => t.value))}</code>
       </div>
     </section>
 
-    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600">
+    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600 rounded-2xl">
       <header class="space-y-2">
         <h2 class="text-2xl font-bold">AutocompleteTagsInput with Colors (Max 5, No Duplicates)</h2>
         <p class="text-surface-600 dark:text-surface-400">Color suggestions with limits</p>
@@ -192,12 +192,12 @@
         allowDuplicates={false}
         onTagsChange={handleColorTagsChange}
       />
-      <div class="bg-surface-200 dark:bg-surface-800 p-4 rounded-token">
+      <div class="bg-surface-200 dark:bg-surface-800 p-4 rounded-2xl">
         <code class="text-sm">Tags: {JSON.stringify(colorTags.map((t) => t.value))} ({colorTags.length}/5)</code>
       </div>
     </section>
 
-    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600">
+    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600 rounded-2xl">
       <header class="space-y-2">
         <h2 class="text-2xl font-bold">Disabled AutocompleteTagsInput</h2>
         <p class="text-surface-600 dark:text-surface-400">Disabled state</p>
@@ -212,7 +212,7 @@
       />
     </section>
 
-    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600">
+    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600 rounded-2xl">
       <header class="space-y-2">
         <h2 class="text-2xl font-bold">AutocompleteTagsInput with Custom Colors</h2>
         <p class="text-surface-600 dark:text-surface-400">
@@ -225,12 +225,12 @@
         tagColorFunction={getTagColor}
         onTagsChange={handleCustomColorTagsChange}
       />
-      <div class="bg-surface-200 dark:bg-surface-800 p-4 rounded-token">
+      <div class="bg-surface-200 dark:bg-surface-800 p-4 rounded-2xl">
         <code class="text-sm">Tags: {JSON.stringify(customColorTags.map((t) => t.value))}</code>
       </div>
     </section>
 
-    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600">
+    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600 rounded-2xl">
       <header class="space-y-2">
         <h2 class="text-2xl font-bold">Readonly AutocompleteTagsInput</h2>
         <p class="text-surface-600 dark:text-surface-400">Readonly state - cannot add/remove tags</p>
@@ -246,7 +246,7 @@
     </section>
   </div>
 
-  <aside class="card p-6 bg-primary-50 dark:bg-primary-900/20 border border-primary-300 dark:border-primary-600">
+  <aside class="card p-6 bg-primary-50 dark:bg-primary-900/20 border border-primary-300 dark:border-primary-600 rounded-2xl">
     <h3 class="text-xl font-bold mb-4">Features</h3>
     <div class="grid md:grid-cols-2 gap-4">
       <ul class="space-y-2">

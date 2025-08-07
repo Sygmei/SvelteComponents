@@ -99,12 +99,12 @@
       <p class="text-xl text-surface-600 dark:text-surface-400">Advanced filtering with TypeScript support</p>
     </header>
 
-    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600">
+    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600 rounded-2xl">
       <header class="space-y-2">
         <h2 class="text-2xl font-bold">Try the Filter Input Box</h2>
         <p class="text-surface-600 dark:text-surface-400">
-        Type to create filters like: <code class="bg-surface-200 dark:bg-surface-800 px-2 py-1 rounded">name == john</code>
-        or <code class="bg-surface-200 dark:bg-surface-800 px-2 py-1 rounded">age > 25</code>
+        Type to create filters like: <code class="bg-surface-200 dark:bg-surface-800 px-2 py-1 rounded-xl">name == john</code>
+        or <code class="bg-surface-200 dark:bg-surface-800 px-2 py-1 rounded-xl">age > 25</code>
         </p>
         <p class="text-sm text-surface-600 dark:text-surface-400">
         Uses TypeScript with proper type definitions and field-aware comparators.
@@ -118,14 +118,14 @@
       />
     </section>
 
-    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600">
+    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600 rounded-2xl">
       <h3 class="text-xl font-bold">Current Filters ({currentFilters.length})</h3>
       {#if currentFilters.length === 0}
         <p class="text-surface-500 dark:text-surface-400 italic">No filters applied</p>
       {:else}
         <div class="space-y-2">
           {#each currentFilters as filter}
-            <div class="bg-surface-100 dark:bg-surface-800 p-4 rounded-token flex items-center gap-3">
+            <div class="bg-surface-100 dark:bg-surface-800 p-4 rounded-2xl flex items-center gap-3">
               {#if isStandardFilter(filter)}
                 <span class="chip bg-primary-500 text-white">{filter.field}</span>
                 <span class="text-surface-600 dark:text-surface-400">{filter.comparator}</span>
@@ -142,7 +142,7 @@
     </section>
 
     <div class="grid md:grid-cols-2 gap-6">
-      <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600">
+      <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600 rounded-2xl">
         <h3 class="text-xl font-bold">TypeScript Features</h3>
         <ul class="space-y-2">
           <li class="flex items-center gap-2">
@@ -168,7 +168,7 @@
         </ul>
       </section>
 
-      <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600">
+      <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600 rounded-2xl">
         <h3 class="text-xl font-bold">Field Types Demo</h3>
         <div class="space-y-3">
           <div class="flex flex-wrap items-center gap-2">
@@ -195,9 +195,9 @@
       </section>
     </div>
 
-    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600">
+    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600 rounded-2xl">
       <h3 class="text-xl font-bold">Usage Example</h3>
-      <div class="bg-surface-200 dark:bg-surface-800 p-4 rounded-token overflow-x-auto">
+      <div class="bg-surface-200 dark:bg-surface-800 p-4 rounded-2xl overflow-x-auto">
         <pre class="text-sm"><code
           >{`import FilterInputBox from '$lib/FilterInputBox.svelte';
 import type { Filter, FieldDefinition } from '$lib/types.js';

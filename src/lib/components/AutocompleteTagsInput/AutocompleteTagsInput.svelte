@@ -157,7 +157,7 @@
 </script>
 
 <div class="relative w-full max-w-2xl">
-  <div class="flex flex-wrap items-center gap-2 p-3 border border-surface-300 dark:border-surface-600 rounded-token bg-surface-50 dark:bg-surface-900 {disabled ? 'opacity-50 cursor-not-allowed' : readonly ? 'bg-surface-100 dark:bg-surface-800' : 'focus-within:border-primary-500'}">
+  <div class="flex flex-wrap items-center gap-2 p-3 border border-surface-300 dark:border-surface-600 rounded-2xl bg-surface-50 dark:bg-surface-900 {disabled ? 'opacity-50 cursor-not-allowed' : readonly ? 'bg-surface-100 dark:bg-surface-800' : 'focus-within:border-primary-500'}">
     {#each internalTags as tag (tag.id)}
       <span
         class="chip {tagColorFunction ? '' : 'bg-primary-500 text-white'} flex items-center gap-1"
@@ -194,7 +194,7 @@
   </div>
 
   {#if showSuggestions && !disabled && !readonly}
-    <div class="absolute top-full left-0 right-0 mt-1 card p-2 max-h-48 overflow-y-auto z-10 border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 shadow-lg">
+    <div class="absolute top-full left-0 right-0 mt-1 card p-2 max-h-48 overflow-y-auto z-10 border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 shadow-lg rounded-2xl">
       {#each suggestions as suggestion, index}
         <button
           type="button"
