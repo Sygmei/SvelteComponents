@@ -92,134 +92,113 @@
   <title>Filter Input Box Demo - TypeScript</title>
 </svelte:head>
 
-<div class="min-h-screen bg-gray-50 py-8">
-  <div class="max-w-4xl mx-auto px-4">
-    <h1 class="text-3xl font-bold text-gray-900 mb-8">
-      Filter Input Box Demo (TypeScript)
-    </h1>
+<div class="container h-full mx-auto flex justify-center items-center">
+  <div class="space-y-8 w-full max-w-5xl p-8">
+    <header class="text-center space-y-4">
+      <h1 class="text-4xl font-bold">Filter Input Box Demo</h1>
+      <p class="text-xl text-surface-600 dark:text-surface-400">Advanced filtering with TypeScript support</p>
+    </header>
 
-    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-8">
-      <h2 class="text-lg font-semibold text-gray-800 mb-4">
-        Try the Filter Input Box
-      </h2>
-      <p class="text-gray-600 mb-4">
-        Type to create filters like: <code class="bg-gray-100 px-2 py-1 rounded"
-          >name == john</code
-        >
-        or <code class="bg-gray-100 px-2 py-1 rounded">age > 25</code>
-      </p>
-      <p class="text-sm text-gray-500 mb-4">
-        Uses TypeScript with proper type definitions and field-aware
-        comparators.
-      </p>
+    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600">
+      <header class="space-y-2">
+        <h2 class="text-2xl font-bold">Try the Filter Input Box</h2>
+        <p class="text-surface-600 dark:text-surface-400">
+        Type to create filters like: <code class="bg-surface-200 dark:bg-surface-800 px-2 py-1 rounded">name == john</code>
+        or <code class="bg-surface-200 dark:bg-surface-800 px-2 py-1 rounded">age > 25</code>
+        </p>
+        <p class="text-sm text-surface-600 dark:text-surface-400">
+        Uses TypeScript with proper type definitions and field-aware comparators.
+        </p>
+      </header>
 
       <FilterInputBox
         fields={advancedFields}
         fetchValues={customFetchValues}
         onFiltersChange={handleFiltersChange}
       />
-    </div>
+    </section>
 
-    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-8">
-      <h3 class="text-lg font-semibold text-gray-800 mb-4">
-        Current Filters ({currentFilters.length})
-      </h3>
+    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600">
+      <h3 class="text-xl font-bold">Current Filters ({currentFilters.length})</h3>
       {#if currentFilters.length === 0}
-        <p class="text-gray-500 italic">No filters applied</p>
+        <p class="text-surface-500 dark:text-surface-400 italic">No filters applied</p>
       {:else}
         <div class="space-y-2">
           {#each currentFilters as filter}
-            <div class="flex items-center gap-3 p-3 bg-gray-50 rounded border">
+            <div class="bg-surface-100 dark:bg-surface-800 p-4 rounded-token flex items-center gap-3">
               {#if isStandardFilter(filter)}
-                <span
-                  class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm font-medium"
-                  >{filter.field}</span
-                >
-                <span class="text-gray-600">{filter.comparator}</span>
+                <span class="chip bg-primary-500 text-white">{filter.field}</span>
+                <span class="text-surface-600 dark:text-surface-400">{filter.comparator}</span>
                 <span class="font-medium">{filter.value}</span>
-                <span class="text-xs text-gray-400 ml-auto"
-                  >Standard Filter</span
-                >
+                <span class="chip bg-tertiary-500 text-white text-xs ml-auto">Standard Filter</span>
               {:else}
-                <span
-                  class="px-2 py-1 bg-green-100 text-green-800 rounded text-sm font-medium"
-                  >{filter.value}</span
-                >
-                <span class="text-xs text-gray-400 ml-auto"
-                  >Value-Only Filter</span
-                >
+                <span class="chip bg-secondary-500 text-white">{filter.value}</span>
+                <span class="chip bg-tertiary-500 text-white text-xs ml-auto">Value-Only Filter</span>
               {/if}
             </div>
           {/each}
         </div>
       {/if}
-    </div>
+    </section>
 
     <div class="grid md:grid-cols-2 gap-6">
-      <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <h3 class="text-lg font-semibold text-gray-800 mb-4">
-          TypeScript Features
-        </h3>
-        <ul class="space-y-2 text-gray-600">
+      <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600">
+        <h3 class="text-xl font-bold">TypeScript Features</h3>
+        <ul class="space-y-2">
           <li class="flex items-center gap-2">
-            <span class="text-green-500">✓</span>
-            Strongly typed props and state
+            <span class="chip bg-success-500 text-white text-sm">✓</span>
+            <span>Strongly typed props and state</span>
           </li>
           <li class="flex items-center gap-2">
-            <span class="text-green-500">✓</span>
-            Type-safe filter objects
+            <span class="chip bg-success-500 text-white text-sm">✓</span>
+            <span>Type-safe filter objects</span>
           </li>
           <li class="flex items-center gap-2">
-            <span class="text-green-500">✓</span>
-            Field type definitions (string, number, enum, boolean, date)
+            <span class="chip bg-success-500 text-white text-sm">✓</span>
+            <span>Field type definitions (string, number, enum, boolean, date)</span>
           </li>
           <li class="flex items-center gap-2">
-            <span class="text-green-500">✓</span>
-            Comparator validation per field type
+            <span class="chip bg-success-500 text-white text-sm">✓</span>
+            <span>Comparator validation per field type</span>
           </li>
           <li class="flex items-center gap-2">
-            <span class="text-green-500">✓</span>
-            Mock data with proper typing
+            <span class="chip bg-success-500 text-white text-sm">✓</span>
+            <span>Mock data with proper typing</span>
           </li>
         </ul>
-      </div>
+      </section>
 
-      <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <h3 class="text-lg font-semibold text-gray-800 mb-4">
-          Field Types Demo
-        </h3>
-        <div class="space-y-3 text-sm">
-          <div>
-            <span class="font-medium text-blue-600">name</span>
-            <span class="text-gray-500 ml-2">(string)</span>
-            <span class="text-xs text-gray-400 ml-2"
-              >contains, startsWith, endsWith</span
-            >
+      <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600">
+        <h3 class="text-xl font-bold">Field Types Demo</h3>
+        <div class="space-y-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="chip bg-primary-500 text-white">name</span>
+            <span class="chip bg-surface-300 dark:bg-surface-600 text-surface-900 dark:text-surface-100 text-sm">string</span>
+            <span class="text-xs text-surface-600 dark:text-surface-400">contains, startsWith, endsWith</span>
           </div>
-          <div>
-            <span class="font-medium text-blue-600">age</span>
-            <span class="text-gray-500 ml-2">(number)</span>
-            <span class="text-xs text-gray-400 ml-2"
-              >&gt;, &lt;, &gt;=, &lt;=, ==, !=</span
-            >
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="chip bg-primary-500 text-white">age</span>
+            <span class="chip bg-surface-300 dark:bg-surface-600 text-surface-900 dark:text-surface-100 text-sm">number</span>
+            <span class="text-xs text-surface-600 dark:text-surface-400">&gt;, &lt;, &gt;=, &lt;=, ==, !=</span>
           </div>
-          <div>
-            <span class="font-medium text-blue-600">department</span>
-            <span class="text-gray-500 ml-2">(enum)</span>
-            <span class="text-xs text-gray-400 ml-2">==, !=, in</span>
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="chip bg-primary-500 text-white">department</span>
+            <span class="chip bg-surface-300 dark:bg-surface-600 text-surface-900 dark:text-surface-100 text-sm">enum</span>
+            <span class="text-xs text-surface-600 dark:text-surface-400">==, !=, in</span>
           </div>
-          <div>
-            <span class="font-medium text-blue-600">isActive</span>
-            <span class="text-gray-500 ml-2">(boolean)</span>
-            <span class="text-xs text-gray-400 ml-2">==, !=</span>
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="chip bg-primary-500 text-white">isActive</span>
+            <span class="chip bg-surface-300 dark:bg-surface-600 text-surface-900 dark:text-surface-100 text-sm">boolean</span>
+            <span class="text-xs text-surface-600 dark:text-surface-400">==, !=</span>
           </div>
         </div>
-      </div>
+      </section>
     </div>
 
-    <div class="mt-6 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-      <h3 class="text-lg font-semibold text-gray-800 mb-4">Usage Example</h3>
-      <pre class="bg-gray-100 p-4 rounded text-sm overflow-x-auto"><code
+    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600">
+      <h3 class="text-xl font-bold">Usage Example</h3>
+      <div class="bg-surface-200 dark:bg-surface-800 p-4 rounded-token overflow-x-auto">
+        <pre class="text-sm"><code
           >{`import FilterInputBox from '$lib/FilterInputBox.svelte';
 import type { Filter, FieldDefinition } from '$lib/types.js';
 
@@ -242,6 +221,7 @@ function handleChange(newFilters: Filter[]) {
   onFiltersChange={handleChange}
 />`}</code
         ></pre>
-    </div>
+      </div>
+    </section>
   </div>
 </div>

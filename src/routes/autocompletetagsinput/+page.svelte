@@ -141,44 +141,50 @@
   <title>AutocompleteTagsInput Demo</title>
 </svelte:head>
 
-<div class="p-8 space-y-8">
-  <h1 class="text-3xl font-bold text-gray-900">AutocompleteTagsInput Component Demo</h1>
+<div class="container h-full mx-auto flex justify-center items-center">
+<div class="space-y-8 w-full max-w-4xl p-8">
+  <header class="text-center space-y-4">
+    <h1 class="text-4xl font-bold">AutocompleteTagsInput Component Demo</h1>
+    <p class="text-xl text-surface-600 dark:text-surface-400">A powerful and flexible tags input component for Svelte</p>
+  </header>
 
-  <div class="space-y-6">
-    <section class="space-y-4">
-      <h2 class="text-xl font-semibold text-gray-800">Basic AutocompleteTagsInput</h2>
-      <p class="text-gray-600">Simple tags input without autocomplete</p>
+  <div class="space-y-10">
+    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600">
+      <header class="space-y-2">
+        <h2 class="text-2xl font-bold">Basic AutocompleteTagsInput</h2>
+        <p class="text-surface-600 dark:text-surface-400">Simple tags input without autocomplete</p>
+      </header>
       <AutocompleteTagsInput
         placeholder="Enter basic tags..."
         onTagsChange={handleBasicTagsChange}
       />
-      <div class="text-sm text-gray-500">
-        Tags: {JSON.stringify(basicTags.map((t) => t.value))}
+      <div class="bg-surface-200 dark:bg-surface-800 p-4 rounded-token">
+        <code class="text-sm">Tags: {JSON.stringify(basicTags.map((t) => t.value))}</code>
       </div>
     </section>
 
-    <section class="space-y-4">
-      <h2 class="text-xl font-semibold text-gray-800">
-        AutocompleteTagsInput with Tech Autocomplete
-      </h2>
-      <p class="text-gray-600">
-        Type programming languages/frameworks (e.g., "java", "script", "react")
-      </p>
+    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600">
+      <header class="space-y-2">
+        <h2 class="text-2xl font-bold">AutocompleteTagsInput with Tech Autocomplete</h2>
+        <p class="text-surface-600 dark:text-surface-400">
+          Type programming languages/frameworks (e.g., "java", "script", "react")
+        </p>
+      </header>
       <AutocompleteTagsInput
         placeholder="Enter tech tags..."
         completer={sampleCompleter}
         onTagsChange={handleTechTagsChange}
       />
-      <div class="text-sm text-gray-500">
-        Tags: {JSON.stringify(techTags.map((t) => t.value))}
+      <div class="bg-surface-200 dark:bg-surface-800 p-4 rounded-token">
+        <code class="text-sm">Tags: {JSON.stringify(techTags.map((t) => t.value))}</code>
       </div>
     </section>
 
-    <section class="space-y-4">
-      <h2 class="text-xl font-semibold text-gray-800">
-        AutocompleteTagsInput with Colors (Max 5, No Duplicates)
-      </h2>
-      <p class="text-gray-600">Color suggestions with limits</p>
+    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600">
+      <header class="space-y-2">
+        <h2 class="text-2xl font-bold">AutocompleteTagsInput with Colors (Max 5, No Duplicates)</h2>
+        <p class="text-surface-600 dark:text-surface-400">Color suggestions with limits</p>
+      </header>
       <AutocompleteTagsInput
         placeholder="Enter color tags..."
         completer={colorCompleter}
@@ -186,14 +192,16 @@
         allowDuplicates={false}
         onTagsChange={handleColorTagsChange}
       />
-      <div class="text-sm text-gray-500">
-        Tags: {JSON.stringify(colorTags.map((t) => t.value))} ({colorTags.length}/5)
+      <div class="bg-surface-200 dark:bg-surface-800 p-4 rounded-token">
+        <code class="text-sm">Tags: {JSON.stringify(colorTags.map((t) => t.value))} ({colorTags.length}/5)</code>
       </div>
     </section>
 
-    <section class="space-y-4">
-      <h2 class="text-xl font-semibold text-gray-800">Disabled AutocompleteTagsInput</h2>
-      <p class="text-gray-600">Disabled state</p>
+    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600">
+      <header class="space-y-2">
+        <h2 class="text-2xl font-bold">Disabled AutocompleteTagsInput</h2>
+        <p class="text-surface-600 dark:text-surface-400">Disabled state</p>
+      </header>
       <AutocompleteTagsInput
         tags={[
           { id: 1, value: "Disabled" },
@@ -204,27 +212,29 @@
       />
     </section>
 
-    <section class="space-y-4">
-      <h2 class="text-xl font-semibold text-gray-800">
-        AutocompleteTagsInput with Custom Colors
-      </h2>
-      <p class="text-gray-600">
-        Tags with custom colors based on their content. Try tech terms or colors!
-      </p>
+    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600">
+      <header class="space-y-2">
+        <h2 class="text-2xl font-bold">AutocompleteTagsInput with Custom Colors</h2>
+        <p class="text-surface-600 dark:text-surface-400">
+          Tags with custom colors based on their content. Try tech terms or colors!
+        </p>
+      </header>
       <AutocompleteTagsInput
         placeholder="Enter tags with custom colors..."
         completer={sampleCompleter}
         tagColorFunction={getTagColor}
         onTagsChange={handleCustomColorTagsChange}
       />
-      <div class="text-sm text-gray-500">
-        Tags: {JSON.stringify(customColorTags.map((t) => t.value))}
+      <div class="bg-surface-200 dark:bg-surface-800 p-4 rounded-token">
+        <code class="text-sm">Tags: {JSON.stringify(customColorTags.map((t) => t.value))}</code>
       </div>
     </section>
 
-    <section class="space-y-4">
-      <h2 class="text-xl font-semibold text-gray-800">Readonly AutocompleteTagsInput</h2>
-      <p class="text-gray-600">Readonly state - cannot add/remove tags</p>
+    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600">
+      <header class="space-y-2">
+        <h2 class="text-2xl font-bold">Readonly AutocompleteTagsInput</h2>
+        <p class="text-surface-600 dark:text-surface-400">Readonly state - cannot add/remove tags</p>
+      </header>
       <AutocompleteTagsInput
         tags={[
           { id: 1, value: "Read" },
@@ -236,18 +246,50 @@
     </section>
   </div>
 
-  <div class="mt-8 p-4 bg-gray-50 rounded-lg">
-    <h3 class="text-lg font-semibold mb-2">Features:</h3>
-    <ul class="space-y-1 text-sm text-gray-600">
-      <li>• Type and press Enter to add tags</li>
-      <li>• Backspace on empty input to delete last tag</li>
-      <li>• Click × button to remove specific tags</li>
-      <li>• Arrow keys to navigate autocomplete suggestions</li>
-      <li>• Custom completer function for autocomplete</li>
-      <li>• Custom tag colors with tagColorFunction</li>
-      <li>• Optional max tags limit</li>
-      <li>• Allow/disallow duplicate tags</li>
-      <li>• Disabled and readonly states</li>
-    </ul>
-  </div>
+  <aside class="card p-6 bg-primary-50 dark:bg-primary-900/20 border border-primary-300 dark:border-primary-600">
+    <h3 class="text-xl font-bold mb-4">Features</h3>
+    <div class="grid md:grid-cols-2 gap-4">
+      <ul class="space-y-2">
+        <li class="flex items-center space-x-2">
+          <span class="chip bg-primary-500 text-white text-sm">✓</span>
+          <span>Type and press Enter to add tags</span>
+        </li>
+        <li class="flex items-center space-x-2">
+          <span class="chip bg-primary-500 text-white text-sm">✓</span>
+          <span>Backspace on empty input to delete last tag</span>
+        </li>
+        <li class="flex items-center space-x-2">
+          <span class="chip bg-primary-500 text-white text-sm">✓</span>
+          <span>Click × button to remove specific tags</span>
+        </li>
+        <li class="flex items-center space-x-2">
+          <span class="chip bg-primary-500 text-white text-sm">✓</span>
+          <span>Arrow keys to navigate autocomplete suggestions</span>
+        </li>
+        <li class="flex items-center space-x-2">
+          <span class="chip bg-primary-500 text-white text-sm">✓</span>
+          <span>Custom completer function for autocomplete</span>
+        </li>
+      </ul>
+      <ul class="space-y-2">
+        <li class="flex items-center space-x-2">
+          <span class="chip bg-secondary-500 text-white text-sm">✓</span>
+          <span>Custom tag colors with tagColorFunction</span>
+        </li>
+        <li class="flex items-center space-x-2">
+          <span class="chip bg-secondary-500 text-white text-sm">✓</span>
+          <span>Optional max tags limit</span>
+        </li>
+        <li class="flex items-center space-x-2">
+          <span class="chip bg-secondary-500 text-white text-sm">✓</span>
+          <span>Allow/disallow duplicate tags</span>
+        </li>
+        <li class="flex items-center space-x-2">
+          <span class="chip bg-secondary-500 text-white text-sm">✓</span>
+          <span>Disabled and readonly states</span>
+        </li>
+      </ul>
+    </div>
+  </aside>
+</div>
 </div>

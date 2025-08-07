@@ -157,30 +157,24 @@
 </script>
 
 <div class="relative w-full max-w-2xl">
-  <div
-    class="flex flex-wrap gap-2 p-3 border border-gray-300 rounded-lg bg-white min-h-[44px] {disabled
-      ? 'bg-gray-50 cursor-not-allowed'
-      : readonly
-        ? 'bg-gray-50'
-        : 'focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500'}"
-  >
+  <div class="flex flex-wrap items-center gap-2 p-3 border border-surface-300 dark:border-surface-600 rounded-token bg-surface-50 dark:bg-surface-900 {disabled ? 'opacity-50 cursor-not-allowed' : readonly ? 'bg-surface-100 dark:bg-surface-800' : 'focus-within:border-primary-500'}">
     {#each internalTags as tag (tag.id)}
-      <div
-        class="flex items-center gap-1 px-2 py-1 rounded-md text-sm"
-        style={tagColorFunction ? `background-color: ${tagColorFunction(tag.value)}; color: white;` : 'background-color: rgb(219 234 254); color: rgb(30 64 175);'}
+      <span
+        class="chip {tagColorFunction ? '' : 'bg-primary-500 text-white'} flex items-center gap-1"
+        style={tagColorFunction ? `background-color: ${tagColorFunction(tag.value)}; color: white;` : ''}
       >
-        <span class="font-medium">{tag.value}</span>
+        <span>{tag.value}</span>
         {#if !disabled && !readonly}
           <button
             type="button"
             onclick={() => removeTag(tag.id)}
-            class="ml-1 rounded-full w-4 h-4 flex items-center justify-center text-xs opacity-70 hover:opacity-100 hover:bg-black hover:bg-opacity-20"
+            class="btn-icon btn-icon-sm opacity-70 hover:opacity-100"
             aria-label="Remove tag"
           >
             ×
           </button>
         {/if}
-      </div>
+      </span>
     {/each}
 
     {#if !readonly && (maxTags === undefined || internalTags.length < maxTags)}
@@ -193,25 +187,21 @@
         onblur={handleBlur}
         placeholder={internalTags.length === 0 ? placeholder : ""}
         {disabled}
-        class="flex-1 min-w-0 outline-none bg-transparent text-sm {disabled
-          ? 'cursor-not-allowed'
-          : ''}"
+        class="flex-1 min-w-0 bg-transparent outline-none {disabled ? 'cursor-not-allowed' : ''}"
+        type="text"
       />
     {/if}
   </div>
 
   {#if showSuggestions && !disabled && !readonly}
-    <div
-      class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto"
-    >
+    <div class="absolute top-full left-0 right-0 mt-1 card p-2 max-h-48 overflow-y-auto z-10 border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 shadow-lg">
       {#each suggestions as suggestion, index}
         <button
           type="button"
           onclick={() => selectSuggestion(suggestion)}
-          class="w-full px-3 py-2 text-left hover:bg-gray-50 text-sm {index ===
-          selectedIndex
-            ? 'bg-blue-50 text-blue-600'
-            : 'text-gray-700'}"
+          class="btn w-full justify-start text-left {index === selectedIndex
+            ? 'bg-primary-500 text-white'
+            : 'hover:bg-surface-200 dark:hover:bg-surface-700'}"
         >
           <span class="font-medium">{suggestion}</span>
         </button>
