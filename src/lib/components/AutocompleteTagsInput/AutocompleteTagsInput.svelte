@@ -168,7 +168,11 @@
           <button
             type="button"
             onclick={() => removeTag(tag.id)}
-            class="btn-icon btn-icon-sm opacity-70 hover:opacity-100"
+            class="ml-1 w-4 h-4 rounded-full flex items-center justify-center text-xs leading-none
+                   text-white/60 hover:text-white/90
+                   hover:bg-white/20
+                   transition-all duration-150 ease-out
+                   focus:outline-none focus:ring-1 focus:ring-white/40"
             aria-label="Remove tag"
           >
             ×
