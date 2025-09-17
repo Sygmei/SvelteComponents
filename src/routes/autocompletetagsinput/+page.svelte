@@ -251,6 +251,46 @@
 
     <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600 rounded-2xl">
       <header class="space-y-2">
+        <h2 class="text-2xl font-bold">AutocompleteTagsInput with 2-Column Grid Layout</h2>
+        <p class="text-surface-600 dark:text-surface-400">
+          Suggestions displayed in a 2-column grid. Use arrow keys or Tab to navigate left/right, up/down.
+        </p>
+      </header>
+      <AutocompleteTagsInput
+        placeholder="Type to see 2-column suggestions..."
+        completer={sampleCompleter}
+        tagColorFunction={getTagColor}
+        showSuggestionsOnFocus={true}
+        completionColumns={2}
+        onTagsChange={handleCustomColorTagsChange}
+      />
+      <div class="bg-surface-200 dark:bg-surface-800 p-4 rounded-2xl">
+        <code class="text-sm">completionColumns: 2</code>
+      </div>
+    </section>
+
+    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600 rounded-2xl">
+      <header class="space-y-2">
+        <h2 class="text-2xl font-bold">AutocompleteTagsInput with 3-Column Grid Layout</h2>
+        <p class="text-surface-600 dark:text-surface-400">
+          Suggestions displayed in a 3-column grid for maximum visibility. Perfect for color selections!
+        </p>
+      </header>
+      <AutocompleteTagsInput
+        placeholder="Try colors in 3-column grid..."
+        completer={colorCompleter}
+        tagColorFunction={getTagColor}
+        showSuggestionsOnFocus={true}
+        completionColumns={3}
+        onTagsChange={handleColorTagsChange}
+      />
+      <div class="bg-surface-200 dark:bg-surface-800 p-4 rounded-2xl">
+        <code class="text-sm">completionColumns: 3, using color completer</code>
+      </div>
+    </section>
+
+    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600 rounded-2xl">
+      <header class="space-y-2">
         <h2 class="text-2xl font-bold">Readonly AutocompleteTagsInput</h2>
         <p class="text-surface-600 dark:text-surface-400">Readonly state - cannot add/remove tags</p>
       </header>

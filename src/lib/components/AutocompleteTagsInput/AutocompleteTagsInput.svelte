@@ -14,6 +14,7 @@
     readonly = false,
     tagColorFunction = undefined,
     showSuggestionsOnFocus = false,
+    completionColumns = 1,
   }: Props = $props();
 
   let inputValue = $state("");
@@ -142,16 +143,62 @@
       return;
     }
 
+    const rows = Math.ceil(suggestions.length / completionColumns);
+    const currentRow = Math.floor(selectedIndex / completionColumns);
+    const currentCol = selectedIndex % completionColumns;
+
     switch (event.key) {
       case "ArrowDown":
         event.preventDefault();
-        selectedIndex = (selectedIndex + 1) % suggestions.length;
+        if (currentRow < rows - 1) {
+          const newIndex = selectedIndex + completionColumns;
+          selectedIndex = Math.min(newIndex, suggestions.length - 1);
+        } else {
+          // Go to first row, same column
+          selectedIndex = Math.min(currentCol, suggestions.length - 1);
+        }
         break;
 
       case "ArrowUp":
         event.preventDefault();
-        selectedIndex =
-          selectedIndex === 0 ? suggestions.length - 1 : selectedIndex - 1;
+        if (currentRow > 0) {
+          selectedIndex = selectedIndex - completionColumns;
+        } else {
+          // Go to last row, same column
+          const lastRowStartIndex = (rows - 1) * completionColumns;
+          selectedIndex = Math.min(lastRowStartIndex + currentCol, suggestions.length - 1);
+        }
+        break;
+
+      case "ArrowRight":
+      case "Tab":
+        event.preventDefault();
+        if (currentCol < completionColumns - 1 && selectedIndex < suggestions.length - 1) {
+          selectedIndex = selectedIndex + 1;
+        } else {
+          // Go to first column of next row, or first item if at end
+          const nextRowStart = (currentRow + 1) * completionColumns;
+          if (nextRowStart < suggestions.length) {
+            selectedIndex = nextRowStart;
+          } else {
+            selectedIndex = 0;
+          }
+        }
+        break;
+
+      case "ArrowLeft":
+        event.preventDefault();
+        if (currentCol > 0) {
+          selectedIndex = selectedIndex - 1;
+        } else {
+          // Go to last column of previous row, or last item if at beginning
+          if (currentRow > 0) {
+            const prevRowEnd = currentRow * completionColumns - 1;
+            selectedIndex = prevRowEnd;
+          } else {
+            selectedIndex = suggestions.length - 1;
+          }
+        }
         break;
 
       case "Enter":
@@ -228,22 +275,27 @@
 
   {#if showSuggestions && !disabled && !readonly}
     <div class="absolute top-full left-0 right-0 mt-1 card p-2 max-h-48 overflow-y-auto z-10 border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 shadow-lg rounded-2xl">
-      {#each suggestions as suggestion, index}
-        <button
-          type="button"
-          onclick={() => selectSuggestion(suggestion)}
-          class="w-full p-2 text-left rounded-lg {index === selectedIndex
-            ? 'bg-surface-200 dark:bg-surface-700'
-            : 'hover:bg-surface-100 dark:hover:bg-surface-800'} transition-colors duration-150"
-        >
-          <span
-            class="chip {tagColorFunction ? '' : 'bg-primary-500 text-white'} inline-flex items-center"
-            style={tagColorFunction ? `background-color: ${tagColorFunction(suggestion)}; color: white;` : ''}
+      <div
+        class="grid gap-2"
+        style="grid-template-columns: repeat({completionColumns}, 1fr);"
+      >
+        {#each suggestions as suggestion, index}
+          <button
+            type="button"
+            onclick={() => selectSuggestion(suggestion)}
+            class="p-2 text-left rounded-lg {index === selectedIndex
+              ? 'bg-surface-200 dark:bg-surface-700'
+              : 'hover:bg-surface-100 dark:hover:bg-surface-800'} transition-colors duration-150"
           >
-            {suggestion}
-          </span>
-        </button>
-      {/each}
+            <span
+              class="chip {tagColorFunction ? '' : 'bg-primary-500 text-white'} inline-flex items-center w-full justify-center"
+              style={tagColorFunction ? `background-color: ${tagColorFunction(suggestion)}; color: white;` : ''}
+            >
+              {suggestion}
+            </span>
+          </button>
+        {/each}
+      </div>
     </div>
   {/if}
 </div>

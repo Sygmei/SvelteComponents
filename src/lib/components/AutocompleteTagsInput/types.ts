@@ -14,4 +14,5 @@ export interface AutocompleteTagsInputProps {
   readonly?: boolean;
   tagColorFunction?: (tagValue: string) => string;
   showSuggestionsOnFocus?: boolean;
+  completionColumns?: number;
 }
