@@ -232,6 +232,25 @@
 
     <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600 rounded-2xl">
       <header class="space-y-2">
+        <h2 class="text-2xl font-bold">AutocompleteTagsInput with Show Suggestions on Focus</h2>
+        <p class="text-surface-600 dark:text-surface-400">
+          Click on the input field to see all available suggestions immediately (without typing)
+        </p>
+      </header>
+      <AutocompleteTagsInput
+        placeholder="Click here to see all suggestions..."
+        completer={sampleCompleter}
+        tagColorFunction={getTagColor}
+        showSuggestionsOnFocus={true}
+        onTagsChange={handleCustomColorTagsChange}
+      />
+      <div class="bg-surface-200 dark:bg-surface-800 p-4 rounded-2xl">
+        <code class="text-sm">showSuggestionsOnFocus: true</code>
+      </div>
+    </section>
+
+    <section class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600 rounded-2xl">
+      <header class="space-y-2">
         <h2 class="text-2xl font-bold">Readonly AutocompleteTagsInput</h2>
         <p class="text-surface-600 dark:text-surface-400">Readonly state - cannot add/remove tags</p>
       </header>

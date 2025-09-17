@@ -13,6 +13,7 @@
     disabled = false,
     readonly = false,
     tagColorFunction = undefined,
+    showSuggestionsOnFocus = false,
   }: Props = $props();
 
   let inputValue = $state("");
@@ -27,8 +28,36 @@
     internalTags = [...tags];
   });
 
-  async function updateSuggestions(): Promise<void> {
-    if (disabled || readonly || !inputValue.trim()) {
+  async function updateSuggestions(forceShow = false): Promise<void> {
+    if (disabled || readonly) {
+      suggestions = [];
+      showSuggestions = false;
+      return;
+    }
+
+    // If showing on focus and no input value, get all suggestions
+    if (forceShow && showSuggestionsOnFocus && !inputValue.trim()) {
+      try {
+        const result = await completer("");
+        suggestions = result.filter((suggestion) => {
+          if (!allowDuplicates) {
+            return !internalTags.some((tag) => tag.value === suggestion);
+          }
+          return true;
+        });
+
+        showSuggestions = suggestions.length > 0;
+        selectedIndex = 0;
+        return;
+      } catch (error) {
+        console.error("Error fetching suggestions:", error);
+        suggestions = [];
+        showSuggestions = false;
+        return;
+      }
+    }
+
+    if (!inputValue.trim()) {
       suggestions = [];
       showSuggestions = false;
       return;
@@ -42,7 +71,7 @@
         }
         return true;
       });
-      
+
       showSuggestions = suggestions.length > 0;
       selectedIndex = 0;
     } catch (error) {
@@ -144,7 +173,7 @@
 
   function handleFocus(): void {
     if (disabled || readonly) return;
-    updateSuggestions();
+    updateSuggestions(true);
   }
 
   function handleBlur(): void {
@@ -203,11 +232,16 @@
         <button
           type="button"
           onclick={() => selectSuggestion(suggestion)}
-          class="btn w-full justify-start text-left {index === selectedIndex
-            ? 'bg-primary-500 text-white'
-            : 'hover:bg-surface-200 dark:hover:bg-surface-700'}"
+          class="w-full p-2 text-left rounded-lg {index === selectedIndex
+            ? 'bg-surface-200 dark:bg-surface-700'
+            : 'hover:bg-surface-100 dark:hover:bg-surface-800'} transition-colors duration-150"
         >
-          <span class="font-medium">{suggestion}</span>
+          <span
+            class="chip {tagColorFunction ? '' : 'bg-primary-500 text-white'} inline-flex items-center"
+            style={tagColorFunction ? `background-color: ${tagColorFunction(suggestion)}; color: white;` : ''}
+          >
+            {suggestion}
+          </span>
         </button>
       {/each}
     </div>
