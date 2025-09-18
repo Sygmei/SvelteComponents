@@ -2,10 +2,8 @@
     import {
         ConfirmModal,
         showConfirmModal,
-        showDeleteConfirmModal,
         showContactFormModal,
     } from "$lib/components/Modal";
-    import ContactFormModal from "$lib/components/Modal/ContactFormModal.svelte";
     import type { ModalSettings } from "$lib/components/Modal";
 
     // Import icons from svelte-awesome

@@ -2,7 +2,6 @@
   import { AutocompleteTagsInput } from "$lib/components/AutocompleteTagsInput";
   import type { Tag } from "$lib/components/AutocompleteTagsInput";
 
-  let tags = $state<Tag[]>([]);
 
   // Sample completer function with various suggestions
   async function sampleCompleter(query: string): Promise<string[]> {
