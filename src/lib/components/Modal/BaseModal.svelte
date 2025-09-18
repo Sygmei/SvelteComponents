@@ -10,6 +10,14 @@
         icon?: any;
         showCloseButton?: boolean;
         size?: "small" | "medium" | "large" | "full";
+        // Default footer props
+        showDefaultFooter?: boolean;
+        confirmText?: string;
+        cancelText?: string;
+        confirmButtonClass?: string;
+        cancelButtonClass?: string;
+        onConfirm?: () => void;
+        onCancel?: () => void;
         onClose?: () => void;
     }
 
@@ -20,11 +28,28 @@
         icon,
         showCloseButton = true,
         size = "medium",
+        showDefaultFooter = false,
+        confirmText = "Confirm",
+        cancelText = "Cancel",
+        confirmButtonClass = "btn bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg transition-colors duration-150",
+        cancelButtonClass = "btn bg-surface-200 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-900 dark:text-surface-100 px-4 py-2 rounded-lg transition-colors duration-150",
+        onConfirm = () => {},
+        onCancel = () => {},
         onClose = () => {},
     }: Props = $props();
 
     function cleanup() {
         onClose();
+        closeModal();
+    }
+
+    function handleConfirm() {
+        onConfirm();
+        closeModal();
+    }
+
+    function handleCancel() {
+        onCancel();
         closeModal();
     }
 
@@ -132,6 +157,25 @@
                 {#if footer}
                     <div class="modal-footer flex-shrink-0 px-6 py-4 border-t border-surface-300 dark:border-surface-600">
                         {@render footer()}
+                    </div>
+                {:else if showDefaultFooter}
+                    <div class="modal-footer flex-shrink-0 px-6 py-4 border-t border-surface-300 dark:border-surface-600">
+                        <div class="flex justify-end space-x-3">
+                            <button
+                                type="button"
+                                onclick={handleCancel}
+                                class={cancelButtonClass}
+                            >
+                                {cancelText}
+                            </button>
+                            <button
+                                type="button"
+                                onclick={handleConfirm}
+                                class={confirmButtonClass}
+                            >
+                                {confirmText}
+                            </button>
+                        </div>
                     </div>
                 {/if}
             </div>

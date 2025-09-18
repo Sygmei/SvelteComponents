@@ -1,5 +1,6 @@
 <script lang="ts">
     import {
+        BaseModal,
         ConfirmModal,
         showConfirmModal,
         showContactFormModal,
@@ -540,6 +541,48 @@
                         class="btn bg-success-500 hover:bg-success-600 text-white"
                     >
                         Quick Success Modal
+                    </button>
+                </div>
+            </section>
+
+            <section
+                class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600 rounded-2xl"
+            >
+                <header class="space-y-2">
+                    <h2 class="text-2xl font-bold">Default vs Custom Footer</h2>
+                    <p class="text-surface-600 dark:text-surface-400">
+                        BaseModal can use a default Cancel/Confirm footer or custom footer snippets
+                    </p>
+                </header>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button
+                        type="button"
+                        onclick={() => showConfirmModal({
+                            title: "Default Footer Example",
+                            message: "This modal uses BaseModal's built-in default footer. ConfirmModal now uses showDefaultFooter=true instead of custom footer snippets, making it much simpler!",
+                            icon: faCheckCircle,
+                            confirmText: "Yes, Continue",
+                            cancelText: "No, Cancel",
+                            onConfirm: () => alert("Default footer confirmed!"),
+                            onCancel: () => alert("Default footer cancelled!")
+                        })}
+                        class="btn bg-blue-500 hover:bg-blue-600 text-white"
+                    >
+                        Default Footer (ConfirmModal)
+                    </button>
+                    <button
+                        type="button"
+                        onclick={() => showPromptModal({
+                            title: "Custom Footer Override",
+                            message: "PromptModal still uses a custom footer snippet to show specialized form actions with validation states and custom styling.",
+                            placeholder: "Enter some text...",
+                            icon: faEdit,
+                            variant: "warning",
+                            onConfirm: (value) => alert(`Custom footer prompt: "${value}"`)
+                        })}
+                        class="btn bg-purple-500 hover:bg-purple-600 text-white"
+                    >
+                        Custom Footer (PromptModal)
                     </button>
                 </div>
             </section>

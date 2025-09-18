@@ -24,42 +24,26 @@
         size = "medium",
     }: Props = $props();
 
-    function handleConfirm() {
-        onConfirm();
-        closeModal();
-    }
-
     const variantStyles = {
-        default: "bg-primary-500 hover:bg-primary-600 text-white",
-        danger: "bg-error-500 hover:bg-error-600 text-white",
-        warning: "bg-warning-500 hover:bg-warning-600 text-white",
-        success: "bg-success-500 hover:bg-success-600 text-white",
+        default: "btn bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg transition-colors duration-150",
+        danger: "btn bg-error-500 hover:bg-error-600 text-white px-4 py-2 rounded-lg transition-colors duration-150",
+        warning: "btn bg-warning-500 hover:bg-warning-600 text-white px-4 py-2 rounded-lg transition-colors duration-150",
+        success: "btn bg-success-500 hover:bg-success-600 text-white px-4 py-2 rounded-lg transition-colors duration-150",
     };
 </script>
 
-<BaseModal {title} {icon} {size}>
+<BaseModal
+    {title}
+    {icon}
+    {size}
+    showDefaultFooter={true}
+    {confirmText}
+    {cancelText}
+    confirmButtonClass={variantStyles[variant]}
+    {onConfirm}
+    onCancel={() => {}}
+>
     <div class="text-surface-700 dark:text-surface-300">
         <p>{message}</p>
     </div>
-
-    {#snippet footer()}
-        <div class="flex justify-end space-x-3">
-            <button
-                type="button"
-                onclick={closeModal}
-                class="btn bg-surface-200 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-900 dark:text-surface-100 px-4 py-2 rounded-lg transition-colors duration-150"
-            >
-                {cancelText}
-            </button>
-            <button
-                type="button"
-                onclick={handleConfirm}
-                class="btn {variantStyles[
-                    variant
-                ]} px-4 py-2 rounded-lg transition-colors duration-150"
-            >
-                {confirmText}
-            </button>
-        </div>
-    {/snippet}
 </BaseModal>
