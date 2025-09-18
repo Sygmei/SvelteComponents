@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { closeModal } from "./ModalStore.svelte";
     import BaseModal from "./BaseModal.svelte";
 
     interface Props {
@@ -25,10 +24,13 @@
     }: Props = $props();
 
     const variantStyles = {
-        default: "btn bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg transition-colors duration-150",
+        default:
+            "btn bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg transition-colors duration-150",
         danger: "btn bg-error-500 hover:bg-error-600 text-white px-4 py-2 rounded-lg transition-colors duration-150",
-        warning: "btn bg-warning-500 hover:bg-warning-600 text-white px-4 py-2 rounded-lg transition-colors duration-150",
-        success: "btn bg-success-500 hover:bg-success-600 text-white px-4 py-2 rounded-lg transition-colors duration-150",
+        warning:
+            "btn bg-warning-500 hover:bg-warning-600 text-white px-4 py-2 rounded-lg transition-colors duration-150",
+        success:
+            "btn bg-success-500 hover:bg-success-600 text-white px-4 py-2 rounded-lg transition-colors duration-150",
     };
 </script>
 
