@@ -16,6 +16,7 @@
         onClose?: () => void;
         title?: string;
         icon?: any;
+        size?: "small" | "medium" | "large" | "full";
     }
 
     let {
@@ -24,6 +25,7 @@
         onClose = () => {},
         title = "Contact Form",
         icon,
+        size = "medium",
     }: Props = $props();
 
     let modalRef: BaseModal;
@@ -39,49 +41,51 @@
     });
 </script>
 
-<BaseModal bind:this={modalRef} {title} {icon} {onClose}>
-    <div class="space-y-6">
-        <form class="space-y-4">
-            <div>
-                <label for="name" class="block text-sm font-medium mb-2"
-                    >Name</label
-                >
-                <input
-                    id="name"
-                    type="text"
-                    bind:value={localFormData.name}
-                    class="input w-full p-3 border border-surface-300 dark:border-surface-600 rounded-lg bg-surface-50 dark:bg-surface-900"
-                    required
-                />
-            </div>
-            <div>
-                <label for="email" class="block text-sm font-medium mb-2"
-                    >Email</label
-                >
-                <input
-                    id="email"
-                    type="email"
-                    bind:value={localFormData.email}
-                    class="input w-full p-3 border border-surface-300 dark:border-surface-600 rounded-lg bg-surface-50 dark:bg-surface-900"
-                    required
-                />
-            </div>
-            <div>
-                <label for="message" class="block text-sm font-medium mb-2"
-                    >Message</label
-                >
-                <textarea
-                    id="message"
-                    bind:value={localFormData.message}
-                    rows="4"
-                    class="input w-full p-3 border border-surface-300 dark:border-surface-600 rounded-lg bg-surface-50 dark:bg-surface-900"
-                    required
-                ></textarea>
-            </div>
-        </form>
+<BaseModal bind:this={modalRef} {title} {icon} {size} {onClose}>
+    <div class="flex flex-col flex-1">
+        <div class="flex-1">
+            <form class="space-y-4">
+                <div>
+                    <label for="name" class="block text-sm font-medium mb-2"
+                        >Name</label
+                    >
+                    <input
+                        id="name"
+                        type="text"
+                        bind:value={localFormData.name}
+                        class="input w-full p-3 border border-surface-300 dark:border-surface-600 rounded-lg bg-surface-50 dark:bg-surface-900"
+                        required
+                    />
+                </div>
+                <div>
+                    <label for="email" class="block text-sm font-medium mb-2"
+                        >Email</label
+                    >
+                    <input
+                        id="email"
+                        type="email"
+                        bind:value={localFormData.email}
+                        class="input w-full p-3 border border-surface-300 dark:border-surface-600 rounded-lg bg-surface-50 dark:bg-surface-900"
+                        required
+                    />
+                </div>
+                <div>
+                    <label for="message" class="block text-sm font-medium mb-2"
+                        >Message</label
+                    >
+                    <textarea
+                        id="message"
+                        bind:value={localFormData.message}
+                        rows="4"
+                        class="input w-full p-3 border border-surface-300 dark:border-surface-600 rounded-lg bg-surface-50 dark:bg-surface-900"
+                        required
+                    ></textarea>
+                </div>
+            </form>
+        </div>
 
         <div
-            class="flex justify-end space-x-3 pt-4 border-t border-surface-300 dark:border-surface-600"
+            class="flex justify-end space-x-3 pt-4 border-t border-surface-300 dark:border-surface-600 mt-4"
         >
             <button
                 type="button"

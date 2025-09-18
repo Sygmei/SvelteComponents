@@ -17,6 +17,7 @@
         onConfirm: (value: string) => void;
         onCancel?: () => void;
         validation?: (value: string) => string | null; // Returns error message or null
+        size?: "small" | "medium" | "large" | "full";
     }
 
     let {
@@ -33,7 +34,8 @@
         variant = "primary",
         onConfirm,
         onCancel = () => {},
-        validation
+        validation,
+        size = "medium"
     }: Props = $props();
 
     let inputValue = $state(defaultValue);
@@ -111,45 +113,47 @@
     };
 </script>
 
-<BaseModal {title} {icon}>
-    <div class="space-y-6">
-        {#if message}
-            <div class="text-surface-700 dark:text-surface-300">
-                <p>{message}</p>
-            </div>
-        {/if}
+<BaseModal {title} {icon} {size}>
+    <div class="flex flex-col flex-1">
+        <div class="flex-1 space-y-6">
+            {#if message}
+                <div class="text-surface-700 dark:text-surface-300">
+                    <p>{message}</p>
+                </div>
+            {/if}
 
-        <div class="space-y-2">
-            <div class="relative">
-                <input
-                    bind:this={inputElement}
-                    bind:value={inputValue}
-                    type={inputType}
-                    {placeholder}
-                    {maxLength}
-                    onkeydown={handleKeydown}
-                    class="w-full px-4 py-3 text-lg border-2 rounded-xl bg-surface-50 dark:bg-surface-900 text-surface-900 dark:text-surface-100 placeholder-surface-400 dark:placeholder-surface-500 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-opacity-20 {inputBorderStyles[variant]} {errorMessage ? 'border-error-500 dark:border-error-400' : ''} {variant === 'primary' ? 'focus:ring-primary-500' : variant === 'success' ? 'focus:ring-success-500' : variant === 'warning' ? 'focus:ring-warning-500' : variant === 'danger' ? 'focus:ring-error-500' : 'focus:ring-surface-500'}"
-                    class:animate-shake={errorMessage}
-                />
+            <div class="space-y-2">
+                <div class="relative">
+                    <input
+                        bind:this={inputElement}
+                        bind:value={inputValue}
+                        type={inputType}
+                        {placeholder}
+                        {maxLength}
+                        onkeydown={handleKeydown}
+                        class="w-full px-4 py-3 text-lg border-2 rounded-xl bg-surface-50 dark:bg-surface-900 text-surface-900 dark:text-surface-100 placeholder-surface-400 dark:placeholder-surface-500 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-opacity-20 {inputBorderStyles[variant]} {errorMessage ? 'border-error-500 dark:border-error-400' : ''} {variant === 'primary' ? 'focus:ring-primary-500' : variant === 'success' ? 'focus:ring-success-500' : variant === 'warning' ? 'focus:ring-warning-500' : variant === 'danger' ? 'focus:ring-error-500' : 'focus:ring-surface-500'}"
+                        class:animate-shake={errorMessage}
+                    />
 
-                {#if maxLength}
-                    <div class="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-surface-400 dark:text-surface-500">
-                        {inputValue.length}/{maxLength}
+                    {#if maxLength}
+                        <div class="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-surface-400 dark:text-surface-500">
+                            {inputValue.length}/{maxLength}
+                        </div>
+                    {/if}
+                </div>
+
+                {#if errorMessage}
+                    <div class="flex items-center space-x-2 text-error-600 dark:text-error-400 text-sm">
+                        <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                        <span>{errorMessage}</span>
                     </div>
                 {/if}
             </div>
-
-            {#if errorMessage}
-                <div class="flex items-center space-x-2 text-error-600 dark:text-error-400 text-sm">
-                    <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                    </svg>
-                    <span>{errorMessage}</span>
-                </div>
-            {/if}
         </div>
 
-        <div class="flex justify-end space-x-3 pt-4 border-t border-surface-300 dark:border-surface-600">
+        <div class="flex justify-end space-x-3 pt-4 border-t border-surface-300 dark:border-surface-600 mt-4">
             <button
                 type="button"
                 onclick={handleCancel}

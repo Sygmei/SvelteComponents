@@ -17,6 +17,7 @@
         onCancel?: () => void;
         confirmText?: string;
         cancelText?: string;
+        size?: "small" | "medium" | "large" | "full";
     }
 
     let {
@@ -32,6 +33,7 @@
         onCancel = () => {},
         confirmText = "Apply Tags",
         cancelText = "Cancel",
+        size = "medium",
     }: Props = $props();
 
     let selectedTags = $state<Tag[]>([...initialTags]);
@@ -51,38 +53,40 @@
     }
 </script>
 
-<BaseModal {title} {icon}>
-    <div class="space-y-6">
-        <div class="space-y-2">
-            <label
-                class="block text-sm font-medium text-surface-700 dark:text-surface-300"
-            >
-                Tags
-            </label>
-            <AutocompleteTagsInput
-                tags={selectedTags}
-                {placeholder}
-                {maxTags}
-                {allowDuplicates}
-                {completer}
-                {tagColorFunction}
-                onTagsChange={handleTagsChange}
-                showSuggestionsOnFocus={true}
-            />
-            {#if selectedTags.length > 0}
-                <p class="text-xs text-surface-500 dark:text-surface-400">
-                    {selectedTags.length} tag{selectedTags.length === 1
-                        ? ""
-                        : "s"} selected
-                    {#if maxTags}
-                        ({maxTags - selectedTags.length} remaining)
-                    {/if}
-                </p>
-            {/if}
+<BaseModal {title} {icon} {size}>
+    <div class="flex flex-col flex-1">
+        <div class="flex-1 space-y-6">
+            <div class="space-y-2">
+                <label
+                    class="block text-sm font-medium text-surface-700 dark:text-surface-300"
+                >
+                    Tags
+                </label>
+                <AutocompleteTagsInput
+                    tags={selectedTags}
+                    {placeholder}
+                    {maxTags}
+                    {allowDuplicates}
+                    {completer}
+                    {tagColorFunction}
+                    onTagsChange={handleTagsChange}
+                    showSuggestionsOnFocus={true}
+                />
+                {#if selectedTags.length > 0}
+                    <p class="text-xs text-surface-500 dark:text-surface-400">
+                        {selectedTags.length} tag{selectedTags.length === 1
+                            ? ""
+                            : "s"} selected
+                        {#if maxTags}
+                            ({maxTags - selectedTags.length} remaining)
+                        {/if}
+                    </p>
+                {/if}
+            </div>
         </div>
 
         <div
-            class="flex justify-end space-x-3 pt-4 border-t border-surface-300 dark:border-surface-600"
+            class="flex justify-end space-x-3 pt-4 border-t border-surface-300 dark:border-surface-600 mt-4"
         >
             <button
                 type="button"

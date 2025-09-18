@@ -12,6 +12,7 @@ export interface ConfirmOptions {
     cancelText?: string;
     variant?: "default" | "danger" | "warning" | "success";
     icon?: any;
+    size?: "small" | "medium" | "large" | "full";
     onConfirm: () => void;
     onCancel?: () => void;
 }
@@ -24,6 +25,7 @@ export interface ContactFormOptions {
     };
     title?: string;
     icon?: any;
+    size?: "small" | "medium" | "large" | "full";
     onSubmit: (data: { name: string; email: string; message: string }) => void;
     onCancel?: () => void;
 }
@@ -39,6 +41,7 @@ export interface TagSelectionOptions {
     tagColorFunction?: (tagValue: string) => string;
     confirmText?: string;
     cancelText?: string;
+    size?: "small" | "medium" | "large" | "full";
     onSubmit: (tags: Tag[]) => void;
     onCancel?: () => void;
 }
@@ -56,6 +59,7 @@ export interface PromptOptions {
     cancelText?: string;
     variant?: "default" | "primary" | "success" | "warning" | "danger";
     validation?: (value: string) => string | null;
+    size?: "small" | "medium" | "large" | "full";
     onConfirm: (value: string) => void;
     onCancel?: () => void;
 }
@@ -70,6 +74,7 @@ export function showConfirmModal(options: ConfirmOptions) {
             cancelText: options.cancelText || "Cancel",
             variant: options.variant || "default",
             icon: options.icon,
+            size: options.size || "medium",
             onConfirm: options.onConfirm,
             onCancel: options.onCancel || (() => { }),
         },
@@ -95,6 +100,7 @@ export function showContactFormModal(options: ContactFormOptions) {
             formData: options.formData || { name: "", email: "", message: "" },
             title: options.title || "Contact Form",
             icon: options.icon,
+            size: options.size || "medium",
             onSubmit: options.onSubmit,
             onCancel: options.onCancel || (() => { }),
         },
@@ -116,6 +122,7 @@ export function showTagSelectionModal(options: TagSelectionOptions) {
             tagColorFunction: options.tagColorFunction,
             confirmText: options.confirmText || "Apply Tags",
             cancelText: options.cancelText || "Cancel",
+            size: options.size || "medium",
             onSubmit: options.onSubmit,
             onCancel: options.onCancel || (() => {}),
         },
@@ -139,6 +146,7 @@ export function showPromptModal(options: PromptOptions) {
             cancelText: options.cancelText || "Cancel",
             variant: options.variant || "primary",
             validation: options.validation,
+            size: options.size || "medium",
             onConfirm: options.onConfirm,
             onCancel: options.onCancel || (() => {}),
         },

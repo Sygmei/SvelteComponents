@@ -8,6 +8,7 @@
         title?: string;
         icon?: any;
         showCloseButton?: boolean;
+        size?: "small" | "medium" | "large" | "full";
         onClose?: () => void;
     }
 
@@ -16,6 +17,7 @@
         title,
         icon,
         showCloseButton = true,
+        size = "medium",
         onClose = () => {},
     }: Props = $props();
 
@@ -39,6 +41,27 @@
     });
 
     let openState = $state(true);
+
+    const sizeClasses = {
+        small: "min-w-80 max-w-md min-h-48",
+        medium: "min-w-96 max-w-lg min-h-56",
+        large: "min-w-[600px] max-w-4xl min-h-80",
+        full: "min-w-[80vw] max-w-[95vw] min-h-[60vh] max-h-[95vh]"
+    };
+
+    const containerClasses = {
+        small: "mx-4",
+        medium: "mx-4",
+        large: "mx-6",
+        full: "mx-4"
+    };
+
+    const modalBodyClasses = {
+        small: "max-h-[60vh] overflow-y-auto",
+        medium: "max-h-[70vh] overflow-y-auto",
+        large: "max-h-[80vh] overflow-y-auto",
+        full: "max-h-[85vh] overflow-y-auto"
+    };
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -52,11 +75,11 @@
     >
         <div onclick={(e) => e.stopPropagation()} class="relative">
             <div
-                class="modal-content bg-surface-50 dark:bg-surface-900 px-6 pb-6 pt-2 rounded-2xl max-w-lg w-full mx-4 shadow-2xl border border-surface-300 dark:border-surface-600"
+                class="modal-content bg-surface-50 dark:bg-surface-900 rounded-2xl w-full shadow-2xl border border-surface-300 dark:border-surface-600 flex flex-col {sizeClasses[size]} {containerClasses[size]}"
             >
                 {#if title || icon || showCloseButton}
                     <header
-                        class="flex items-center justify-between py-2 px-1 mb-4 border-b border-surface-200 dark:border-surface-700"
+                        class="flex items-center justify-between py-2 px-6 pt-2 border-b border-surface-200 dark:border-surface-700 flex-shrink-0"
                     >
                         <div class="flex items-center gap-3">
                             {#if icon}
@@ -100,7 +123,7 @@
                     </header>
                 {/if}
 
-                <div class="modal-body">
+                <div class="modal-body flex-1 overflow-y-auto px-6 py-4 flex flex-col">
                     {@render children()}
                 </div>
             </div>

@@ -366,6 +366,140 @@
                 class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600 rounded-2xl"
             >
                 <header class="space-y-2">
+                    <h2 class="text-2xl font-bold">Modal Sizes</h2>
+                    <p class="text-surface-600 dark:text-surface-400">
+                        Different modal sizes: small, medium, large, and almost-full-screen
+                    </p>
+                </header>
+                <div class="space-y-4">
+                    <div>
+                        <h4 class="text-sm font-medium text-surface-700 dark:text-surface-300 mb-3">Long Content (Lorem Ipsum)</h4>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <button
+                        type="button"
+                        onclick={() => showConfirmModal({
+                            title: "Small Modal Size Demo",
+                            message: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+                            icon: faInfoCircle,
+                            size: "small",
+                            onConfirm: () => alert("Small modal confirmed!")
+                        })}
+                        class="btn bg-blue-500 hover:bg-blue-600 text-white"
+                    >
+                        Small Size
+                    </button>
+                    <button
+                        type="button"
+                        onclick={() => showConfirmModal({
+                            title: "Medium Modal Size Demo",
+                            message: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+                            icon: faInfoCircle,
+                            size: "medium",
+                            onConfirm: () => alert("Medium modal confirmed!")
+                        })}
+                        class="btn bg-green-500 hover:bg-green-600 text-white"
+                    >
+                        Medium Size
+                    </button>
+                    <button
+                        type="button"
+                        onclick={() => showConfirmModal({
+                            title: "Large Modal Size Demo",
+                            message: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+                            icon: faInfoCircle,
+                            size: "large",
+                            onConfirm: () => alert("Large modal confirmed!")
+                        })}
+                        class="btn bg-orange-500 hover:bg-orange-600 text-white"
+                    >
+                        Large Size
+                    </button>
+                    <button
+                        type="button"
+                        onclick={() => showConfirmModal({
+                            title: "Full Modal Size Demo",
+                            message: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+                            icon: faInfoCircle,
+                            size: "full",
+                            onConfirm: () => alert("Full modal confirmed!")
+                        })}
+                        class="btn bg-purple-500 hover:bg-purple-600 text-white"
+                    >
+                        Full Size
+                    </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="text-sm font-medium text-surface-700 dark:text-surface-300 mb-3">Short Content ("Hello")</h4>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <button
+                                type="button"
+                                onclick={() => showConfirmModal({
+                                    title: "Small Modal",
+                                    message: "Hello",
+                                    icon: faInfoCircle,
+                                    size: "small",
+                                    onConfirm: () => alert("Small modal confirmed!")
+                                })}
+                                class="btn bg-blue-400 hover:bg-blue-500 text-white"
+                            >
+                                Small + Hello
+                            </button>
+                            <button
+                                type="button"
+                                onclick={() => showConfirmModal({
+                                    title: "Medium Modal",
+                                    message: "Hello",
+                                    icon: faInfoCircle,
+                                    size: "medium",
+                                    onConfirm: () => alert("Medium modal confirmed!")
+                                })}
+                                class="btn bg-green-400 hover:bg-green-500 text-white"
+                            >
+                                Medium + Hello
+                            </button>
+                            <button
+                                type="button"
+                                onclick={() => showConfirmModal({
+                                    title: "Large Modal",
+                                    message: "Hello",
+                                    icon: faInfoCircle,
+                                    size: "large",
+                                    onConfirm: () => alert("Large modal confirmed!")
+                                })}
+                                class="btn bg-orange-400 hover:bg-orange-500 text-white"
+                            >
+                                Large + Hello
+                            </button>
+                            <button
+                                type="button"
+                                onclick={() => showConfirmModal({
+                                    title: "Full Modal",
+                                    message: "Hello",
+                                    icon: faInfoCircle,
+                                    size: "full",
+                                    onConfirm: () => alert("Full modal confirmed!")
+                                })}
+                                class="btn bg-purple-400 hover:bg-purple-500 text-white"
+                            >
+                                Full + Hello
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4 text-sm text-surface-600 dark:text-surface-400 space-y-2">
+                    <p><strong>Small:</strong> min: 320×192px, max: 448px width - Quick confirmations</p>
+                    <p><strong>Medium:</strong> min: 384×224px, max: 512px width - Standard dialogs (default)</p>
+                    <p><strong>Large:</strong> min: 600×320px, max: 896px width - Complex forms and content</p>
+                    <p><strong>Full:</strong> min: 80%×60% viewport, max: 95%×95% - Maximum space utilization</p>
+                </div>
+            </section>
+
+            <section
+                class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600 rounded-2xl"
+            >
+                <header class="space-y-2">
                     <h2 class="text-2xl font-bold">Helper Functions</h2>
                     <p class="text-surface-600 dark:text-surface-400">
                         Simplified functions for common modal patterns

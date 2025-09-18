@@ -10,6 +10,7 @@
         onConfirm: () => void;
         variant?: "default" | "danger" | "warning" | "success";
         icon?: any;
+        size?: "small" | "medium" | "large" | "full";
     }
 
     let {
@@ -20,6 +21,7 @@
         onConfirm,
         variant = "default",
         icon,
+        size = "medium",
     }: Props = $props();
 
     function handleConfirm() {
@@ -35,13 +37,15 @@
     };
 </script>
 
-<BaseModal {title} {icon}>
-    <div class="space-y-6">
-        <div class="text-surface-700 dark:text-surface-300">
-            <p>{message}</p>
+<BaseModal {title} {icon} {size}>
+    <div class="flex flex-col flex-1">
+        <div class="flex-1">
+            <div class="text-surface-700 dark:text-surface-300">
+                <p>{message}</p>
+            </div>
         </div>
 
-        <div class="flex justify-end space-x-3">
+        <div class="flex justify-end space-x-3 pt-4 border-t border-surface-300 dark:border-surface-600 mt-4">
             <button
                 type="button"
                 onclick={closeModal}
