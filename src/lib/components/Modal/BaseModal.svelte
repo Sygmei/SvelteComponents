@@ -5,10 +5,13 @@
 
     interface Props {
         children: Snippet;
+        header?: Snippet;
         footer?: Snippet;
+        // Default header props
         title?: string;
         icon?: any;
         showCloseButton?: boolean;
+        showDefaultHeader?: boolean;
         size?: "small" | "medium" | "large" | "full";
         // Default footer props
         showDefaultFooter?: boolean;
@@ -23,10 +26,12 @@
 
     let {
         children,
+        header,
         footer,
         title,
         icon,
         showCloseButton = true,
+        showDefaultHeader = true,
         size = "medium",
         showDefaultFooter = false,
         confirmText = "Confirm",
@@ -73,21 +78,21 @@
         small: "min-w-80 max-w-md min-h-48",
         medium: "min-w-96 max-w-lg min-h-56",
         large: "min-w-[600px] max-w-4xl min-h-80",
-        full: "min-w-[80vw] max-w-[95vw] min-h-[60vh] max-h-[95vh]"
+        full: "min-w-[80vw] max-w-[95vw] min-h-[60vh] max-h-[95vh]",
     };
 
     const containerClasses = {
         small: "mx-4",
         medium: "mx-4",
         large: "mx-6",
-        full: "mx-4"
+        full: "mx-4",
     };
 
     const modalBodyClasses = {
         small: "max-h-[60vh] overflow-y-auto",
         medium: "max-h-[70vh] overflow-y-auto",
         large: "max-h-[80vh] overflow-y-auto",
-        full: "max-h-[85vh] overflow-y-auto"
+        full: "max-h-[85vh] overflow-y-auto",
     };
 </script>
 
@@ -102,9 +107,15 @@
     >
         <div onclick={(e) => e.stopPropagation()} class="relative">
             <div
-                class="modal-content bg-surface-50 dark:bg-surface-900 rounded-2xl w-full shadow-2xl border border-surface-300 dark:border-surface-600 flex flex-col {sizeClasses[size]} {containerClasses[size]}"
+                class="modal-content bg-surface-50 dark:bg-surface-900 rounded-2xl w-full shadow-2xl border border-surface-300 dark:border-surface-600 flex flex-col {sizeClasses[
+                    size
+                ]} {containerClasses[size]}"
             >
-                {#if title || icon || showCloseButton}
+                {#if header}
+                    <div class="modal-header flex-shrink-0 px-6 py-2">
+                        {@render header()}
+                    </div>
+                {:else if showDefaultHeader && (title || icon || showCloseButton)}
                     <header
                         class="flex items-center justify-between py-2 px-6 pt-2 border-b border-surface-200 dark:border-surface-700 flex-shrink-0"
                     >
@@ -155,11 +166,15 @@
                 </div>
 
                 {#if footer}
-                    <div class="modal-footer flex-shrink-0 px-6 py-4 border-t border-surface-300 dark:border-surface-600">
+                    <div
+                        class="modal-footer flex-shrink-0 px-6 py-4 border-t border-surface-300 dark:border-surface-600"
+                    >
                         {@render footer()}
                     </div>
                 {:else if showDefaultFooter}
-                    <div class="modal-footer flex-shrink-0 px-6 py-4 border-t border-surface-300 dark:border-surface-600">
+                    <div
+                        class="modal-footer flex-shrink-0 px-6 py-4 border-t border-surface-300 dark:border-surface-600"
+                    >
                         <div class="flex justify-end space-x-3">
                             <button
                                 type="button"

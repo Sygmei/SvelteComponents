@@ -168,9 +168,20 @@
         setActiveModal(modalSettings);
     }
 
+    function openCustomHeaderModal() {
+        const modalSettings: ModalSettings = {
+            modal: CustomHeaderModal,
+            props: {
+                onConfirm: () => alert("Custom header modal confirmed with gradient styling!")
+            },
+        };
+        setActiveModal(modalSettings);
+    }
+
     // Simple modal store import
     import ModalStore from "$lib/components/Modal/ModalStore.svelte";
     import { setActiveModal } from "../../lib/components/Modal/ModalStore.svelte";
+    import CustomHeaderModal from "./CustomHeaderModal.svelte";
 </script>
 
 <svelte:head>
@@ -583,6 +594,39 @@
                         class="btn bg-purple-500 hover:bg-purple-600 text-white"
                     >
                         Custom Footer (PromptModal)
+                    </button>
+                </div>
+            </section>
+
+            <section
+                class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600 rounded-2xl"
+            >
+                <header class="space-y-2">
+                    <h2 class="text-2xl font-bold">Default vs Custom Header</h2>
+                    <p class="text-surface-600 dark:text-surface-400">
+                        BaseModal can use a default header with title/icon/close or custom header snippets
+                    </p>
+                </header>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button
+                        type="button"
+                        onclick={() => showConfirmModal({
+                            title: "Default Header Example",
+                            message: "This modal uses BaseModal's built-in default header with standard title, icon, and close button styling.",
+                            icon: faCheckCircle,
+                            confirmText: "Got it",
+                            onConfirm: () => alert("Default header modal confirmed!")
+                        })}
+                        class="btn bg-green-500 hover:bg-green-600 text-white"
+                    >
+                        Default Header
+                    </button>
+                    <button
+                        type="button"
+                        onclick={() => openCustomHeaderModal()}
+                        class="btn bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white"
+                    >
+                        Custom Header Override
                     </button>
                 </div>
             </section>
