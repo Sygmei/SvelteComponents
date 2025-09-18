@@ -5,6 +5,7 @@
 
     interface Props {
         children: Snippet;
+        footer?: Snippet;
         title?: string;
         icon?: any;
         showCloseButton?: boolean;
@@ -14,6 +15,7 @@
 
     let {
         children,
+        footer,
         title,
         icon,
         showCloseButton = true,
@@ -123,9 +125,15 @@
                     </header>
                 {/if}
 
-                <div class="modal-body flex-1 overflow-y-auto px-6 py-4 flex flex-col">
+                <div class="modal-body flex-1 overflow-y-auto px-6 py-4">
                     {@render children()}
                 </div>
+
+                {#if footer}
+                    <div class="modal-footer flex-shrink-0 px-6 py-4 border-t border-surface-300 dark:border-surface-600">
+                        {@render footer()}
+                    </div>
+                {/if}
             </div>
         </div>
     </div>
