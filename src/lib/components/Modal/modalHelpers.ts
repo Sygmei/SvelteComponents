@@ -1,6 +1,9 @@
 import ConfirmModal from "./ConfirmModal.svelte";
 import ContactFormModal from "./ContactFormModal.svelte";
+import TagSelectionModal from "./TagSelectionModal.svelte";
+import PromptModal from "./PromptModal.svelte";
 import { setActiveModal, type ModalSettings } from "./ModalStore.svelte";
+import type { Tag } from "$lib/components/AutocompleteTagsInput";
 
 export interface ConfirmOptions {
     title?: string;
@@ -22,6 +25,38 @@ export interface ContactFormOptions {
     title?: string;
     icon?: any;
     onSubmit: (data: { name: string; email: string; message: string }) => void;
+    onCancel?: () => void;
+}
+
+export interface TagSelectionOptions {
+    title?: string;
+    icon?: any;
+    initialTags?: Tag[];
+    placeholder?: string;
+    maxTags?: number;
+    allowDuplicates?: boolean;
+    completer?: (query: string) => Promise<string[]> | string[];
+    tagColorFunction?: (tagValue: string) => string;
+    confirmText?: string;
+    cancelText?: string;
+    onSubmit: (tags: Tag[]) => void;
+    onCancel?: () => void;
+}
+
+export interface PromptOptions {
+    title?: string;
+    icon?: any;
+    message?: string;
+    placeholder?: string;
+    defaultValue?: string;
+    inputType?: "text" | "email" | "password" | "number" | "url" | "tel";
+    maxLength?: number;
+    required?: boolean;
+    confirmText?: string;
+    cancelText?: string;
+    variant?: "default" | "primary" | "success" | "warning" | "danger";
+    validation?: (value: string) => string | null;
+    onConfirm: (value: string) => void;
     onCancel?: () => void;
 }
 
@@ -62,6 +97,50 @@ export function showContactFormModal(options: ContactFormOptions) {
             icon: options.icon,
             onSubmit: options.onSubmit,
             onCancel: options.onCancel || (() => { }),
+        },
+    };
+    setActiveModal(modalSettings);
+}
+
+export function showTagSelectionModal(options: TagSelectionOptions) {
+    const modalSettings: ModalSettings = {
+        modal: TagSelectionModal,
+        props: {
+            title: options.title || "Select Tags",
+            icon: options.icon,
+            initialTags: options.initialTags || [],
+            placeholder: options.placeholder || "Add tags...",
+            maxTags: options.maxTags,
+            allowDuplicates: options.allowDuplicates || false,
+            completer: options.completer || (async () => []),
+            tagColorFunction: options.tagColorFunction,
+            confirmText: options.confirmText || "Apply Tags",
+            cancelText: options.cancelText || "Cancel",
+            onSubmit: options.onSubmit,
+            onCancel: options.onCancel || (() => {}),
+        },
+    };
+    setActiveModal(modalSettings);
+}
+
+export function showPromptModal(options: PromptOptions) {
+    const modalSettings: ModalSettings = {
+        modal: PromptModal,
+        props: {
+            title: options.title || "Enter Value",
+            icon: options.icon,
+            message: options.message,
+            placeholder: options.placeholder || "Enter value...",
+            defaultValue: options.defaultValue || "",
+            inputType: options.inputType || "text",
+            maxLength: options.maxLength,
+            required: options.required !== undefined ? options.required : true,
+            confirmText: options.confirmText || "Confirm",
+            cancelText: options.cancelText || "Cancel",
+            variant: options.variant || "primary",
+            validation: options.validation,
+            onConfirm: options.onConfirm,
+            onCancel: options.onCancel || (() => {}),
         },
     };
     setActiveModal(modalSettings);

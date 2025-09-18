@@ -3,6 +3,8 @@
         ConfirmModal,
         showConfirmModal,
         showContactFormModal,
+        showTagSelectionModal,
+        showPromptModal,
     } from "$lib/components/Modal";
     import type { ModalSettings } from "$lib/components/Modal";
 
@@ -15,6 +17,8 @@
         faEnvelope,
         faUser,
         faInfoCircle,
+        faTags,
+        faEdit,
     } from "@fortawesome/free-solid-svg-icons";
 
     let formData = $state({
@@ -22,6 +26,29 @@
         email: "",
         message: "",
     });
+
+    let selectedTags = $state([]);
+
+    // Sample completer for tag modal
+    async function techCompleter(query: string): Promise<string[]> {
+        const suggestions = [
+            "JavaScript", "TypeScript", "Svelte", "React", "Vue", "Angular",
+            "Node.js", "Python", "Java", "C++", "Rust", "Go", "PHP", "Ruby"
+        ];
+        return suggestions.filter((suggestion) =>
+            suggestion.toLowerCase().includes(query.toLowerCase())
+        );
+    }
+
+    // Tag color function
+    function getTagColor(tagValue: string): string {
+        const colors = {
+            "JavaScript": "#f7df1e", "TypeScript": "#3178c6", "Python": "#3776ab",
+            "Java": "#ed8b00", "Rust": "#ce422b", "Go": "#00add8",
+            "React": "#61dafb", "Vue": "#4fc08d", "Svelte": "#ff3e00"
+        };
+        return colors[tagValue] || `hsl(${tagValue.length * 137.508 % 360}, 65%, 50%)`;
+    }
 
     function handleConfirm(message: string) {
         alert(`Confirmed: ${message}`);
@@ -103,6 +130,25 @@
             icon: faEnvelope,
             onSubmit: handleFormSubmit,
             onCancel: () => alert("Form cancelled"),
+        });
+    }
+
+    function openTagModal() {
+        showTagSelectionModal({
+            title: "Select Skills",
+            icon: faTags,
+            initialTags: selectedTags,
+            placeholder: "Add your skills...",
+            maxTags: 5,
+            allowDuplicates: false,
+            completer: techCompleter,
+            tagColorFunction: getTagColor,
+            confirmText: "Save Skills",
+            onSubmit: (tags) => {
+                selectedTags = tags;
+                alert(`Selected ${tags.length} skills: ${tags.map(t => t.value).join(', ')}`);
+            },
+            onCancel: () => alert("Tag selection cancelled"),
         });
     }
 
@@ -199,6 +245,121 @@
                 >
                     Open Form Modal
                 </button>
+            </section>
+
+            <section
+                class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600 rounded-2xl"
+            >
+                <header class="space-y-2">
+                    <h2 class="text-2xl font-bold">Tag Selection Modal</h2>
+                    <p class="text-surface-600 dark:text-surface-400">
+                        Modal containing AutocompleteTagsInput for skill/tag selection
+                    </p>
+                </header>
+                <div class="flex flex-col space-y-3">
+                    <button
+                        type="button"
+                        onclick={openTagModal}
+                        class="btn bg-purple-500 hover:bg-purple-600 text-white"
+                    >
+                        Select Skills
+                    </button>
+                    {#if selectedTags.length > 0}
+                        <div class="flex flex-wrap gap-2">
+                            <span class="text-sm text-surface-600 dark:text-surface-400">Current skills:</span>
+                            {#each selectedTags as tag}
+                                <span
+                                    class="chip text-white text-sm"
+                                    style="background-color: {getTagColor(tag.value)};"
+                                >
+                                    {tag.value}
+                                </span>
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
+            </section>
+
+            <section
+                class="card p-6 space-y-4 bg-surface-50 dark:bg-surface-900 border border-surface-300 dark:border-surface-600 rounded-2xl"
+            >
+                <header class="space-y-2">
+                    <h2 class="text-2xl font-bold">Prompt Modal</h2>
+                    <p class="text-surface-600 dark:text-surface-400">
+                        Beautiful input prompts with validation and different input types
+                    </p>
+                </header>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button
+                        type="button"
+                        onclick={() => showPromptModal({
+                            title: "Enter Your Name",
+                            message: "Please provide your full name for the profile:",
+                            placeholder: "e.g. John Doe",
+                            icon: faUser,
+                            variant: "primary",
+                            onConfirm: (name) => alert(`Hello, ${name}!`)
+                        })}
+                        class="btn bg-primary-500 hover:bg-primary-600 text-white"
+                    >
+                        Name Prompt
+                    </button>
+                    <button
+                        type="button"
+                        onclick={() => showPromptModal({
+                            title: "Enter Email",
+                            message: "We'll use this to send you updates:",
+                            placeholder: "your.email@example.com",
+                            inputType: "email",
+                            icon: faEnvelope,
+                            variant: "success",
+                            validation: (email) => {
+                                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                                return emailRegex.test(email) ? null : "Please enter a valid email address";
+                            },
+                            onConfirm: (email) => alert(`Email saved: ${email}`)
+                        })}
+                        class="btn bg-success-500 hover:bg-success-600 text-white"
+                    >
+                        Email Prompt
+                    </button>
+                    <button
+                        type="button"
+                        onclick={() => showPromptModal({
+                            title: "Set Password",
+                            message: "Create a secure password (minimum 8 characters):",
+                            placeholder: "Enter password...",
+                            inputType: "password",
+                            icon: faExclamationTriangle,
+                            variant: "warning",
+                            validation: (password) => {
+                                if (password.length < 8) return "Password must be at least 8 characters";
+                                if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) return "Password must contain uppercase, lowercase, and number";
+                                return null;
+                            },
+                            onConfirm: (password) => alert("Password set successfully!")
+                        })}
+                        class="btn bg-warning-500 hover:bg-warning-600 text-white"
+                    >
+                        Password Prompt
+                    </button>
+                    <button
+                        type="button"
+                        onclick={() => showPromptModal({
+                            title: "Enter Message",
+                            message: "Share your thoughts with us:",
+                            placeholder: "Type your message here...",
+                            maxLength: 280,
+                            icon: faEdit,
+                            variant: "default",
+                            confirmText: "Send Message",
+                            onConfirm: (message) => alert(`Message sent: "${message}"`)
+                        })}
+                        class="btn bg-surface-500 hover:bg-surface-600 text-white"
+                    >
+                        Message Prompt
+                    </button>
+                </div>
             </section>
 
             <section
