@@ -3,12 +3,14 @@ export interface Tag {
   value: string;
 }
 
+type Completer = (query: string) => Promise<string[]> | string[];
+
 export interface AutocompleteTagsInputProps {
   tags?: Tag[];
   placeholder?: string;
   maxTags?: number;
   allowDuplicates?: boolean;
-  completer?: (query: string) => Promise<string[]> | string[];
+  completer?: Completer;
   onTagsChange?: (tags: Tag[]) => void;
   disabled?: boolean;
   readonly?: boolean;

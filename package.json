@@ -31,6 +31,8 @@
     "vite": "^7.0.0"
   },
   "dependencies": {
-    "@tailwindcss/vite": "^4.1.11"
+    "@fortawesome/free-solid-svg-icons": "^7.0.1",
+    "@tailwindcss/vite": "^4.1.11",
+    "svelte-awesome": "^3.3.5"
   }
 }
