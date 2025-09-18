@@ -1,8 +1,5 @@
 export { default as BaseModal } from "./BaseModal.svelte";
 export { default as ConfirmModal } from "./ConfirmModal.svelte";
-export { default as FormModal } from "./FormModal.svelte";
 export { default as ContactFormModal } from "./ContactFormModal.svelte";
 export { default as ModalStore } from "./ModalStore.svelte";
-export { triggerModal, closeModal } from "./modalStore.js";
-export type { ModalSettings } from "./modalStore.js";
 export * from "./modalHelpers";

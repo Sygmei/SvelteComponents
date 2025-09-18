@@ -1,7 +1,6 @@
-import { triggerModal, closeModal } from "./modalStore.js";
 import ConfirmModal from "./ConfirmModal.svelte";
 import ContactFormModal from "./ContactFormModal.svelte";
-import type { ModalSettings } from "./modalStore.js";
+import { setActiveModal, type ModalSettings } from "./ModalStore.svelte";
 
 export interface ConfirmOptions {
     title?: string;
@@ -37,10 +36,10 @@ export function showConfirmModal(options: ConfirmOptions) {
             variant: options.variant || "default",
             icon: options.icon,
             onConfirm: options.onConfirm,
-            onCancel: options.onCancel || (() => {}),
+            onCancel: options.onCancel || (() => { }),
         },
     };
-    triggerModal(modalSettings);
+    setActiveModal(modalSettings);
 }
 
 export function showDeleteConfirmModal(itemName: string, onConfirm: () => void, onCancel?: () => void) {
@@ -62,10 +61,8 @@ export function showContactFormModal(options: ContactFormOptions) {
             title: options.title || "Contact Form",
             icon: options.icon,
             onSubmit: options.onSubmit,
-            onCancel: options.onCancel || (() => {}),
+            onCancel: options.onCancel || (() => { }),
         },
     };
-    triggerModal(modalSettings);
+    setActiveModal(modalSettings);
 }
-
-// closeModal is already exported from modalStore.js

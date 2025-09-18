@@ -6,7 +6,6 @@
         showContactFormModal,
     } from "$lib/components/Modal";
     import ContactFormModal from "$lib/components/Modal/ContactFormModal.svelte";
-    import { triggerModal } from "$lib/components/Modal/modalStore.js";
     import type { ModalSettings } from "$lib/components/Modal";
 
     // Import icons from svelte-awesome
@@ -17,7 +16,7 @@
         faCheckCircle,
         faEnvelope,
         faUser,
-        faInfoCircle
+        faInfoCircle,
     } from "@fortawesome/free-solid-svg-icons";
 
     let formData = $state({
@@ -62,7 +61,8 @@
             modal: ConfirmModal,
             props: {
                 title: "Delete Item",
-                message: "This action cannot be undone. Are you sure you want to delete this item?",
+                message:
+                    "This action cannot be undone. Are you sure you want to delete this item?",
                 confirmText: "Delete",
                 variant: "danger",
                 icon: faTrash,
@@ -70,7 +70,7 @@
                 onCancel: () => handleCancel("delete"),
             },
         };
-        triggerModal(modalSettings);
+        setActiveModal(modalSettings);
     }
 
     function openWarningModal() {
@@ -120,11 +120,12 @@
                 onCancel: () => alert("Store modal cancelled!"),
             },
         };
-        triggerModal(modalSettings);
+        setActiveModal(modalSettings);
     }
 
     // Simple modal store import
     import ModalStore from "$lib/components/Modal/ModalStore.svelte";
+    import { setActiveModal } from "../../lib/components/Modal/ModalStore.svelte";
 </script>
 
 <svelte:head>
@@ -219,7 +220,8 @@
                                 modal: ConfirmModal,
                                 props: {
                                     title: "Delete User Account",
-                                    message: "This action cannot be undone. Are you sure you want to delete this User Account?",
+                                    message:
+                                        "This action cannot be undone. Are you sure you want to delete this User Account?",
                                     confirmText: "Delete",
                                     variant: "danger",
                                     icon: faUser,
@@ -227,7 +229,7 @@
                                     onCancel: () => {},
                                 },
                             };
-                            triggerModal(modalSettings);
+                            setActiveModal(modalSettings);
                         }}
                         class="btn bg-error-500 hover:bg-error-600 text-white"
                     >

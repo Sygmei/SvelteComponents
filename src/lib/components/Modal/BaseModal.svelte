@@ -1,7 +1,7 @@
 <script lang="ts">
-    import type { Snippet } from "svelte";
-    import { closeModal } from "./modalStore.js";
+    import { onDestroy, type Snippet } from "svelte";
     import Icon from "svelte-awesome/components/Icon.svelte";
+    import { closeModal } from "./ModalStore.svelte";
 
     interface Props {
         children: Snippet;
@@ -19,20 +19,24 @@
         onClose = () => {},
     }: Props = $props();
 
-    export function modalClose() {
+    function cleanup() {
         onClose();
         closeModal();
     }
 
     function handleBackdropClick() {
-        modalClose();
+        cleanup();
     }
 
     function handleKeydown(event: KeyboardEvent) {
         if (event.key === "Escape") {
-            modalClose();
+            cleanup();
         }
     }
+
+    onDestroy(() => {
+        cleanup();
+    });
 
     let openState = $state(true);
 </script>
@@ -74,7 +78,7 @@
                         {#if showCloseButton}
                             <button
                                 type="button"
-                                onclick={modalClose}
+                                onclick={cleanup}
                                 class="flex-shrink-0 p-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors duration-150 text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200"
                                 aria-label="Close modal"
                             >

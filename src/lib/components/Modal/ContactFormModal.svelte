@@ -1,5 +1,6 @@
 <script lang="ts">
     import BaseModal from "./BaseModal.svelte";
+    import { closeModal } from "./ModalStore.svelte";
 
     interface Props {
         formData?: {
@@ -7,8 +8,11 @@
             email: string;
             message: string;
         };
-        onSubmit: (data: { name: string; email: string; message: string }) => void;
-        onCancel?: () => void;
+        onSubmit: (data: {
+            name: string;
+            email: string;
+            message: string;
+        }) => void;
         onClose?: () => void;
         title?: string;
         icon?: any;
@@ -17,10 +21,9 @@
     let {
         formData = { name: "", email: "", message: "" },
         onSubmit,
-        onCancel = () => {},
         onClose = () => {},
         title = "Contact Form",
-        icon
+        icon,
     }: Props = $props();
 
     let modalRef: BaseModal;
@@ -28,16 +31,7 @@
 
     function handleSubmit() {
         onSubmit(localFormData);
-        modalRef?.modalClose();
-    }
-
-    function handleCancel() {
-        onCancel();
-        modalRef?.modalClose();
-    }
-
-    function handleClose() {
-        onClose();
+        closeModal();
     }
 
     $effect(() => {
@@ -45,11 +39,13 @@
     });
 </script>
 
-<BaseModal bind:this={modalRef} {title} {icon} onClose={handleClose}>
+<BaseModal bind:this={modalRef} {title} {icon} {onClose}>
     <div class="space-y-6">
         <form class="space-y-4">
             <div>
-                <label for="name" class="block text-sm font-medium mb-2">Name</label>
+                <label for="name" class="block text-sm font-medium mb-2"
+                    >Name</label
+                >
                 <input
                     id="name"
                     type="text"
@@ -59,7 +55,9 @@
                 />
             </div>
             <div>
-                <label for="email" class="block text-sm font-medium mb-2">Email</label>
+                <label for="email" class="block text-sm font-medium mb-2"
+                    >Email</label
+                >
                 <input
                     id="email"
                     type="email"
@@ -69,7 +67,9 @@
                 />
             </div>
             <div>
-                <label for="message" class="block text-sm font-medium mb-2">Message</label>
+                <label for="message" class="block text-sm font-medium mb-2"
+                    >Message</label
+                >
                 <textarea
                     id="message"
                     bind:value={localFormData.message}
@@ -80,10 +80,12 @@
             </div>
         </form>
 
-        <div class="flex justify-end space-x-3 pt-4 border-t border-surface-300 dark:border-surface-600">
+        <div
+            class="flex justify-end space-x-3 pt-4 border-t border-surface-300 dark:border-surface-600"
+        >
             <button
                 type="button"
-                onclick={handleCancel}
+                onclick={closeModal}
                 class="btn bg-surface-200 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-900 dark:text-surface-100 px-4 py-2 rounded-lg"
             >
                 Cancel
@@ -92,7 +94,9 @@
                 type="button"
                 onclick={handleSubmit}
                 class="btn bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg"
-                disabled={!localFormData.name || !localFormData.email || !localFormData.message}
+                disabled={!localFormData.name ||
+                    !localFormData.email ||
+                    !localFormData.message}
             >
                 Submit
             </button>
