@@ -1,12 +1,12 @@
 <script lang="ts">
     import {
         ConfirmModal,
-        modalStore,
         showConfirmModal,
         showDeleteConfirmModal,
         showContactFormModal,
     } from "$lib/components/Modal";
     import ContactFormModal from "$lib/components/Modal/ContactFormModal.svelte";
+    import { triggerModal } from "$lib/components/Modal/modalStore.js";
     import type { ModalSettings } from "$lib/components/Modal";
 
     // Import icons from svelte-awesome
@@ -70,7 +70,7 @@
                 onCancel: () => handleCancel("delete"),
             },
         };
-        modalStore?.trigger(modalSettings);
+        triggerModal(modalSettings);
     }
 
     function openWarningModal() {
@@ -120,26 +120,18 @@
                 onCancel: () => alert("Store modal cancelled!"),
             },
         };
-        modalStore?.trigger(modalSettings);
+        triggerModal(modalSettings);
     }
 
-    // Modal Store initialisation
+    // Simple modal store import
     import ModalStore from "$lib/components/Modal/ModalStore.svelte";
-
-    let modalStoreRef: ModalStore;
-
-    $effect(() => {
-        if (modalStoreRef) {
-            modalStoreRef.selfRegister(modalStoreRef);
-        }
-    });
 </script>
 
 <svelte:head>
     <title>Modal Demo</title>
 </svelte:head>
 
-<ModalStore bind:this={modalStoreRef} />
+<ModalStore />
 <div class="container h-full mx-auto flex justify-center items-center">
     <div class="space-y-8 w-full max-w-4xl p-8">
         <header class="text-center space-y-4">
@@ -235,7 +227,7 @@
                                     onCancel: () => {},
                                 },
                             };
-                            modalStore?.trigger(modalSettings);
+                            triggerModal(modalSettings);
                         }}
                         class="btn bg-error-500 hover:bg-error-600 text-white"
                     >

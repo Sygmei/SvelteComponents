@@ -1,7 +1,7 @@
-import { modalStore } from "./ModalStore.svelte";
+import { triggerModal, closeModal } from "./modalStore.js";
 import ConfirmModal from "./ConfirmModal.svelte";
 import ContactFormModal from "./ContactFormModal.svelte";
-import type { ModalSettings } from "./ModalStore.svelte";
+import type { ModalSettings } from "./modalStore.js";
 
 export interface ConfirmOptions {
     title?: string;
@@ -40,7 +40,7 @@ export function showConfirmModal(options: ConfirmOptions) {
             onCancel: options.onCancel || (() => {}),
         },
     };
-    modalStore?.trigger(modalSettings);
+    triggerModal(modalSettings);
 }
 
 export function showDeleteConfirmModal(itemName: string, onConfirm: () => void, onCancel?: () => void) {
@@ -65,9 +65,7 @@ export function showContactFormModal(options: ContactFormOptions) {
             onCancel: options.onCancel || (() => {}),
         },
     };
-    modalStore?.trigger(modalSettings);
+    triggerModal(modalSettings);
 }
 
-export function closeModal() {
-    modalStore?.reset();
-}
+// closeModal is already exported from modalStore.js

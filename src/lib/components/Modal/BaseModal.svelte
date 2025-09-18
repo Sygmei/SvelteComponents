@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { Snippet } from "svelte";
-    import { modalStore } from "./ModalStore.svelte";
+    import { closeModal } from "./modalStore.js";
     import Icon from "svelte-awesome/components/Icon.svelte";
 
     interface Props {
@@ -21,9 +21,7 @@
 
     export function modalClose() {
         onClose();
-        if (modalStore) {
-            modalStore.reset();
-        }
+        closeModal();
     }
 
     function handleBackdropClick() {
