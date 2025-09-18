@@ -24,6 +24,7 @@
   let selectedIndex = $state(0);
   let inputElement: HTMLInputElement;
   let containerElement: HTMLDivElement;
+  let dropdownPosition = $state({ top: 0, left: 0, width: 0 });
 
   // Sync internal tags with prop changes
   $effect(() => {
@@ -232,16 +233,61 @@
     }, 150);
   }
 
-  function getDropdownPosition() {
-    if (!containerElement) return { top: 0, left: 0, width: 0 };
+  function updateDropdownPosition() {
+    if (!containerElement) {
+      dropdownPosition = { top: 0, left: 0, width: 0 };
+      return;
+    }
 
     const rect = containerElement.getBoundingClientRect();
-    return {
+    dropdownPosition = {
       top: rect.bottom + 4, // 4px gap
       left: rect.left,
       width: rect.width
     };
   }
+
+  // Update position when dropdown becomes visible
+  $effect(() => {
+    if (showSuggestions && containerElement) {
+      updateDropdownPosition();
+    }
+  });
+
+  // Update position on scroll and resize
+  $effect(() => {
+    if (!showSuggestions || !containerElement) return;
+
+    const handlePositionUpdate = () => {
+      updateDropdownPosition();
+    };
+
+    // Listen to scroll events on window and any scrollable parents
+    window.addEventListener('scroll', handlePositionUpdate, { passive: true });
+    window.addEventListener('resize', handlePositionUpdate, { passive: true });
+
+    // Also listen to scroll events on any scrollable parent elements
+    let element = containerElement.parentElement;
+    const scrollableElements: Element[] = [];
+
+    while (element) {
+      const style = window.getComputedStyle(element);
+      if (style.overflow === 'scroll' || style.overflow === 'auto' ||
+          style.overflowY === 'scroll' || style.overflowY === 'auto') {
+        scrollableElements.push(element);
+        element.addEventListener('scroll', handlePositionUpdate, { passive: true });
+      }
+      element = element.parentElement;
+    }
+
+    return () => {
+      window.removeEventListener('scroll', handlePositionUpdate);
+      window.removeEventListener('resize', handlePositionUpdate);
+      scrollableElements.forEach(el => {
+        el.removeEventListener('scroll', handlePositionUpdate);
+      });
+    };
+  });
 </script>
 
 <div class="relative w-full max-w-2xl">
@@ -250,12 +296,13 @@
       <span
         class="chip {tagColorFunction ? '' : 'bg-primary-500 text-white'} flex items-center gap-1"
         style={tagColorFunction ? `background-color: ${tagColorFunction(tag.value)}; color: white;` : ''}
+        onclick={(e) => e.stopPropagation()}
       >
-        <span>{tag.value}</span>
+        <span onclick={(e) => e.stopPropagation()}>{tag.value}</span>
         {#if !disabled && !readonly}
           <button
             type="button"
-            onclick={() => removeTag(tag.id)}
+            onclick={(e) => { e.stopPropagation(); removeTag(tag.id); }}
             class="ml-1 w-4 h-4 rounded-full flex items-center justify-center text-xs leading-none
                    text-white/60 hover:text-white/90
                    hover:bg-white/20
@@ -286,10 +333,9 @@
   </div>
 
   {#if showSuggestions && !disabled && !readonly}
-    {@const position = getDropdownPosition()}
     <div
       class="fixed card p-2 max-h-48 overflow-y-auto z-[60] border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 shadow-lg rounded-2xl"
-      style="top: {position.top}px; left: {position.left}px; width: {position.width}px;"
+      style="top: {dropdownPosition.top}px; left: {dropdownPosition.left}px; width: {dropdownPosition.width}px;"
     >
       <div
         class="grid gap-2"
