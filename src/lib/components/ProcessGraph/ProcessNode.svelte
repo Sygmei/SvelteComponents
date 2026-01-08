@@ -167,7 +167,7 @@
 </script>
 
 <div
-    class="process-node group relative min-w-[180px] max-w-[260px] rounded-xl border-2 backdrop-blur-sm transition-all duration-300 {config.bgColor} {config.borderColor} {selected
+    class="process-node group relative w-[180px] rounded-xl border-2 backdrop-blur-sm transition-all duration-300 {config.bgColor} {config.borderColor} {selected
         ? 'shadow-lg ' + config.glow
         : 'shadow-md'} {isDark ? 'bg-slate-900/80' : 'bg-white/90'}"
     class:scale-105={selected}

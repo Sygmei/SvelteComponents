@@ -4,26 +4,365 @@ import ELK from 'elkjs/lib/elk.bundled.js';
 import type { ElkNode, ElkExtendedEdge } from 'elkjs';
 
 // Node dimensions - constants
-const MIN_NODE_WIDTH = 180;
+const NODE_WIDTH = 180;
 const NODE_HEIGHT = 80;
-const CHAR_WIDTH = 8;
 const GROUP_PADDING = 40;
 const GROUP_HEADER = 40;
 
 const elk = new ELK();
 
 /**
- * Calculate the width needed for a process node based on its name
+ * Find the common ancestor group of two groups (or 'root' if none)
  */
-function calculateNodeWidth(processName: string): number {
-    const parts = processName.split('.');
-    const shortName = parts[parts.length - 1];
-    const textWidth = shortName.length * CHAR_WIDTH;
-    return Math.max(MIN_NODE_WIDTH, textWidth + 70);
+function findCommonAncestor(group1: string, group2: string): string {
+    if (group1 === 'root' || group2 === 'root') return 'root';
+    if (group1 === group2) return group1;
+    
+    const parts1 = group1.split('.');
+    const parts2 = group2.split('.');
+    
+    const commonParts: string[] = [];
+    for (let i = 0; i < Math.min(parts1.length, parts2.length); i++) {
+        if (parts1[i] === parts2[i]) {
+            commonParts.push(parts1[i]);
+        } else {
+            break;
+        }
+    }
+    
+    return commonParts.length > 0 ? commonParts.join('.') : 'root';
 }
 
 /**
- * Converts process data to Svelte Flow nodes and edges with ELK layout
+ * Get edges that should be laid out at a specific group level
+ * These are edges where both source and target are direct children of the group
+ */
+function getEdgesForGroupLevel(
+    groupId: string,
+    groups: Map<string, GroupInfo>,
+    edgesInGroup: Map<string, { sources: string[]; targets: string[] }[]>
+): ElkExtendedEdge[] {
+    const edges: ElkExtendedEdge[] = [];
+    const groupEdges = edgesInGroup.get(groupId) || [];
+    
+    groupEdges.forEach((edge, idx) => {
+        const sourceId = edge.sources[0];
+        const targetId = edge.targets[0];
+        
+        // Get the direct child representation for source and target
+        const sourceChild = getDirectChildId(sourceId, groupId, groups);
+        const targetChild = getDirectChildId(targetId, groupId, groups);
+        
+        if (sourceChild && targetChild) {
+            edges.push({
+                id: `${groupId}-edge-${idx}`,
+                sources: [sourceChild],
+                targets: [targetChild]
+            });
+        }
+    });
+    
+    return edges;
+}
+
+/**
+ * Get the direct child ID of a process/group relative to a parent group
+ */
+function getDirectChildId(nodeId: string, parentGroupId: string, groups: Map<string, GroupInfo>): string | null {
+    const nodeGroup = extractGroup(nodeId);
+    
+    if (parentGroupId === 'root') {
+        // Direct child is either the process itself (if root level) or the first-level group
+        if (nodeGroup === 'root') {
+            return nodeId; // Root-level process
+        }
+        const firstPart = nodeGroup.split('.')[0];
+        return `group-${firstPart}`;
+    }
+    
+    // Check if node is directly in this group
+    const group = groups.get(parentGroupId);
+    if (!group) return null;
+    
+    if (group.processes.includes(nodeId)) {
+        return nodeId;
+    }
+    
+    // Check if node is in a direct child group
+    for (const childGroupId of group.childGroups) {
+        const childGroup = groups.get(childGroupId);
+        if (childGroup) {
+            if (childGroup.processes.includes(nodeId) || nodeGroup.startsWith(childGroupId + '.') || nodeGroup === childGroupId) {
+                return `group-${childGroupId}`;
+            }
+        }
+    }
+    
+    // Node might be a process directly in this group
+    if (nodeGroup === parentGroupId) {
+        return nodeId;
+    }
+    
+    return null;
+}
+
+/**
+ * Layout a single group using ELK
+ */
+async function layoutGroup(
+    group: GroupInfo,
+    allGroups: Map<string, GroupInfo>,
+    nodeWidths: Map<string, number>,
+    groupSizes: Map<string, { width: number; height: number }>,
+    edgesInGroup: Map<string, { sources: string[]; targets: string[] }[]>,
+    groupInternalLayouts: Map<string, Map<string, { x: number; y: number; width: number; height: number }>>
+): Promise<{ width: number; height: number }> {
+    const children: ElkNode[] = [];
+    
+    // Add direct child groups (using their pre-computed sizes)
+    group.childGroups.forEach(childGroupId => {
+        const size = groupSizes.get(childGroupId);
+        if (size) {
+            children.push({
+                id: `group-${childGroupId}`,
+                width: size.width,
+                height: size.height
+            });
+        }
+    });
+    
+    // Add direct processes
+    group.processes.forEach(pName => {
+        children.push({
+            id: pName,
+            width: nodeWidths.get(pName) || NODE_WIDTH,
+            height: NODE_HEIGHT
+        });
+    });
+    
+    // Get edges internal to this group level
+    const edges = getEdgesForGroupLevel(group.id, allGroups, edgesInGroup);
+    
+    const elkGraph: ElkNode = {
+        id: `layout-${group.id}`,
+        layoutOptions: {
+            'elk.algorithm': 'layered',
+            'elk.direction': 'DOWN',
+            'elk.layered.spacing.nodeNodeBetweenLayers': '60',
+            'elk.spacing.nodeNode': '40',
+            'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
+            'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
+            'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+            'elk.padding': `[top=${GROUP_HEADER + GROUP_PADDING},left=${GROUP_PADDING},bottom=${GROUP_PADDING},right=${GROUP_PADDING}]`,
+            'elk.alignment': 'CENTER',
+            'elk.contentAlignment': 'H_CENTER V_TOP'
+        },
+        children,
+        edges
+    };
+    
+    const layouted = await elk.layout(elkGraph);
+    
+    // Store internal layout positions
+    const internalLayout = new Map<string, { x: number; y: number; width: number; height: number }>();
+    layouted.children?.forEach(child => {
+        internalLayout.set(child.id, {
+            x: child.x || 0,
+            y: child.y || 0,
+            width: child.width || 0,
+            height: child.height || 0
+        });
+    });
+    groupInternalLayouts.set(group.id, internalLayout);
+    
+    return {
+        width: layouted.width || 200,
+        height: layouted.height || 100
+    };
+}
+
+/**
+ * Layout the root level
+ */
+async function layoutRoot(
+    processes: Process[],
+    groups: Map<string, GroupInfo>,
+    nodeWidths: Map<string, number>,
+    groupSizes: Map<string, { width: number; height: number }>,
+    edgesInGroup: Map<string, { sources: string[]; targets: string[] }[]>
+): Promise<Map<string, { x: number; y: number; width: number; height: number }>> {
+    const children: ElkNode[] = [];
+    
+    // Add root-level processes
+    processes.forEach(p => {
+        if (!p.name.includes('.')) {
+            children.push({
+                id: p.name,
+                width: nodeWidths.get(p.name) || NODE_WIDTH,
+                height: NODE_HEIGHT
+            });
+        }
+    });
+    
+    // Add root-level groups
+    const rootGroups = Array.from(groups.values()).filter(g => !g.parentId);
+    rootGroups.forEach(group => {
+        const size = groupSizes.get(group.id);
+        if (size) {
+            children.push({
+                id: `group-${group.id}`,
+                width: size.width,
+                height: size.height
+            });
+        }
+    });
+    
+    // Get edges at root level
+    const edges = getEdgesForGroupLevel('root', groups, edgesInGroup);
+    
+    const elkGraph: ElkNode = {
+        id: 'root',
+        layoutOptions: {
+            'elk.algorithm': 'layered',
+            'elk.direction': 'DOWN',
+            'elk.layered.spacing.nodeNodeBetweenLayers': '80',
+            'elk.spacing.nodeNode': '50',
+            'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
+            'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
+            'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+            'elk.padding': '[top=20,left=20,bottom=20,right=20]',
+            'elk.alignment': 'CENTER',
+            'elk.contentAlignment': 'H_CENTER V_TOP'
+        },
+        children,
+        edges
+    };
+    
+    const layouted = await elk.layout(elkGraph);
+    
+    const rootLayout = new Map<string, { x: number; y: number; width: number; height: number }>();
+    layouted.children?.forEach(child => {
+        rootLayout.set(child.id, {
+            x: child.x || 0,
+            y: child.y || 0,
+            width: child.width || 0,
+            height: child.height || 0
+        });
+    });
+    
+    return rootLayout;
+}
+
+/**
+ * Build Svelte Flow nodes and edges from the hierarchical layouts
+ */
+function buildSvelteFlowFromLayouts(
+    processes: Process[],
+    processMap: Map<string, Process>,
+    groups: Map<string, GroupInfo>,
+    rootLayout: Map<string, { x: number; y: number; width: number; height: number }>,
+    groupInternalLayouts: Map<string, Map<string, { x: number; y: number; width: number; height: number }>>,
+    groupSizes: Map<string, { width: number; height: number }>
+): { nodes: Node[]; edges: Edge[] } {
+    const nodes: Node[] = [];
+    const edges: Edge[] = [];
+    
+    // Sort groups by depth (shallowest first for proper parent-child relationship)
+    const sortedGroups = Array.from(groups.values()).sort((a, b) => a.path.length - b.path.length);
+    
+    // Create group nodes
+    sortedGroups.forEach(group => {
+        const size = groupSizes.get(group.id);
+        if (!size) return;
+        
+        let position: { x: number; y: number };
+        
+        if (!group.parentId) {
+            // Root-level group
+            const layout = rootLayout.get(`group-${group.id}`);
+            position = { x: layout?.x || 0, y: layout?.y || 0 };
+        } else {
+            // Nested group - get position from parent's internal layout
+            const parentLayout = groupInternalLayouts.get(group.parentId);
+            const myLayout = parentLayout?.get(`group-${group.id}`);
+            position = { x: myLayout?.x || 0, y: myLayout?.y || 0 };
+        }
+        
+        nodes.push({
+            id: `group-${group.id}`,
+            type: 'group',
+            position,
+            data: {
+                label: group.path[group.path.length - 1],
+                fullPath: group.path.join('.')
+            },
+            style: `width: ${size.width}px; height: ${size.height}px;`,
+            ...(group.parentId && { parentId: `group-${group.parentId}` })
+        });
+    });
+    
+    // Create process nodes
+    processes.forEach(process => {
+        const groupPath = extractGroup(process.name);
+        const parentGroupId = groupPath !== 'root' ? `group-${groupPath}` : undefined;
+        
+        let position: { x: number; y: number };
+        
+        if (groupPath === 'root') {
+            // Root-level process
+            const layout = rootLayout.get(process.name);
+            position = { x: layout?.x || 0, y: layout?.y || 0 };
+        } else {
+            // Process in a group - get position from group's internal layout
+            const groupLayout = groupInternalLayouts.get(groupPath);
+            const myLayout = groupLayout?.get(process.name);
+            position = { x: myLayout?.x || 0, y: myLayout?.y || 0 };
+        }
+        
+        nodes.push({
+            id: process.name,
+            type: 'process',
+            position,
+            data: {
+                label: process.name,
+                status: process.status,
+                errorMessage: process.last_run_error_message,
+                group: groupPath
+            } satisfies ProcessNodeData,
+            ...(parentGroupId && { parentId: parentGroupId })
+        });
+    });
+    
+    // Create edges
+    processes.forEach(process => {
+        process.upstream_processes.forEach(upstream => {
+            const sourceStatus = processMap.get(upstream)?.status || 'NOTSTARTED';
+            const targetStatus = process.status;
+            
+            edges.push({
+                id: `${upstream}->${process.name}`,
+                source: upstream,
+                target: process.name,
+                type: 'smoothstep',
+                animated: targetStatus === 'INPROGRESS',
+                style: getEdgeStyle(sourceStatus, targetStatus)
+            });
+        });
+    });
+    
+    return { nodes, edges };
+}
+
+/**
+ * Standard node width
+ */
+function calculateNodeWidth(_processName: string): number {
+    return NODE_WIDTH;
+}
+
+/**
+ * Converts process data to Svelte Flow nodes and edges with hierarchical ELK layout
+ * Layout is applied bottom-up: deepest groups first, then parent groups treat children as single nodes
  */
 export async function processesToFlowAsync(processes: Process[]): Promise<{ nodes: Node[]; edges: Edge[] }> {
     const processMap = new Map<string, Process>();
@@ -38,14 +377,46 @@ export async function processesToFlowAsync(processes: Process[]): Promise<{ node
         nodeWidths.set(p.name, calculateNodeWidth(p.name));
     });
 
-    // Build ELK graph with hierarchy
-    const elkGraph = buildElkGraph(processes, groups, nodeWidths);
+    // Build edges map for quick lookup
+    const edgesInGroup = new Map<string, { sources: string[]; targets: string[] }[]>();
     
-    // Run ELK layout
-    const layoutedGraph = await elk.layout(elkGraph);
+    // Collect edges that are internal to each group
+    processes.forEach(process => {
+        const targetGroup = extractGroup(process.name);
+        process.upstream_processes.forEach(upstream => {
+            const sourceGroup = extractGroup(upstream);
+            // Find the common ancestor group for this edge
+            const commonGroup = findCommonAncestor(sourceGroup, targetGroup);
+            
+            if (!edgesInGroup.has(commonGroup)) {
+                edgesInGroup.set(commonGroup, []);
+            }
+            edgesInGroup.get(commonGroup)!.push({
+                sources: [upstream],
+                targets: [process.name]
+            });
+        });
+    });
+
+    // Sort groups by depth (deepest first for bottom-up layout)
+    const sortedGroups = Array.from(groups.values()).sort((a, b) => b.path.length - a.path.length);
     
-    // Convert ELK result to Svelte Flow nodes and edges
-    return elkToSvelteFlow(layoutedGraph, processes, processMap, groups);
+    // Store computed sizes for each group after layout
+    const groupSizes = new Map<string, { width: number; height: number }>();
+    // Store internal layouts for each group
+    const groupInternalLayouts = new Map<string, Map<string, { x: number; y: number; width: number; height: number }>>();
+
+    // Layout each group bottom-up
+    for (const group of sortedGroups) {
+        const layout = await layoutGroup(group, groups, nodeWidths, groupSizes, edgesInGroup, groupInternalLayouts);
+        groupSizes.set(group.id, { width: layout.width, height: layout.height });
+    }
+
+    // Now layout the root level
+    const rootLayout = await layoutRoot(processes, groups, nodeWidths, groupSizes, edgesInGroup);
+    
+    // Convert to Svelte Flow format
+    return buildSvelteFlowFromLayouts(processes, processMap, groups, rootLayout, groupInternalLayouts, groupSizes);
 }
 
 /**
@@ -96,7 +467,7 @@ function processesToFlowSync(
         levelGroups.forEach((names, level) => {
             let x = currentX;
             names.forEach(name => {
-                const width = nodeWidths.get(name) || MIN_NODE_WIDTH;
+                const width = nodeWidths.get(name) || NODE_WIDTH;
                 nodePositions.set(name, { x, y: level * (NODE_HEIGHT + 60) });
                 x += width + 50;
             });
@@ -243,7 +614,7 @@ function layoutGroupSimple(
         const names = processLevels.get(level)!;
         let levelWidth = 0;
         names.forEach((name, idx) => {
-            levelWidth += nodeWidths.get(name) || MIN_NODE_WIDTH;
+            levelWidth += nodeWidths.get(name) || NODE_WIDTH;
             if (idx < names.length - 1) levelWidth += 50;
         });
         processesWidth = Math.max(processesWidth, levelWidth);
@@ -267,7 +638,7 @@ function layoutGroupSimple(
         
         let levelWidth = 0;
         names.forEach((name, idx) => {
-            levelWidth += nodeWidths.get(name) || MIN_NODE_WIDTH;
+            levelWidth += nodeWidths.get(name) || NODE_WIDTH;
             if (idx < names.length - 1) levelWidth += 50;
         });
         
@@ -275,7 +646,7 @@ function layoutGroupSimple(
         const y = processStartY + levelIdx * (NODE_HEIGHT + 60);
         
         names.forEach(name => {
-            const width = nodeWidths.get(name) || MIN_NODE_WIDTH;
+            const width = nodeWidths.get(name) || NODE_WIDTH;
             nodePositions.set(name, { x: startX + x, y });
             x += width + 50;
         });
@@ -340,7 +711,7 @@ function buildElkGraph(
         if (!p.name.includes('.')) {
             graph.children!.push({
                 id: p.name,
-                width: nodeWidths.get(p.name) || MIN_NODE_WIDTH,
+                width: nodeWidths.get(p.name) || NODE_WIDTH,
                 height: NODE_HEIGHT,
                 layoutOptions: {
                     'elk.portConstraints': 'FIXED_ORDER'
@@ -406,7 +777,7 @@ function buildElkGroup(
     group.processes.forEach(pName => {
         elkGroup.children!.push({
             id: pName,
-            width: nodeWidths.get(pName) || MIN_NODE_WIDTH,
+            width: nodeWidths.get(pName) || NODE_WIDTH,
             height: NODE_HEIGHT
         });
     });
