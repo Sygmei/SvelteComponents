@@ -19,6 +19,7 @@ export interface GroupBox {
     y: number;
     width: number;
     height: number;
+    collapsed: boolean;
 }
 export const groupBoxesStore = writable<GroupBox[]>([]);
 
@@ -759,7 +760,8 @@ function unifiedElkToSvelteFlow(
                 x: pos.x,
                 y: pos.y,
                 width: pos.width,
-                height: pos.height
+                height: pos.height,
+                collapsed: collapsedGroups.has(id)
             });
         }
     });

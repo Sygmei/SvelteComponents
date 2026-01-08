@@ -158,6 +158,13 @@
         intersectingBoxes.sort((a, b) => a.y - b.y);
 
         // Build path around boxes
+        // Logic for choosing branch point:
+        // We want to branch at the same Y where an edge going INTO this group would turn.
+        // - For expanded groups: edge targets first child at ~box.y + 70
+        // - For collapsed groups: edge targets the group input port at ~box.y + half_height
+        const FIRST_CHILD_OFFSET = 70; // For expanded groups
+        const COLLAPSED_NODE_HEIGHT = 60; // Approximate height of collapsed group
+        
         const waypoints: Array<{ x: number; y: number }> = [];
         waypoints.push({ x: sourceX, y: sourceY });
 
@@ -171,28 +178,55 @@
             const boxBottom = box.y + box.height + MARGIN;
             const boxCenterX = box.x + box.width / 2;
 
+            // Calculate where an edge going INTO this group would turn
+            // For collapsed groups, the target is the group's input port (top center)
+            // For expanded groups, the target is the first child inside
+            // Note: input handles are slightly above the node's y position
+            const INPUT_HANDLE_OFFSET = 6; // Handle is ~6px above box.y
+            let estimatedTargetY: number;
+            if (box.collapsed) {
+                // Collapsed: edge goes to the group's input port at the top
+                estimatedTargetY = box.y - INPUT_HANDLE_OFFSET;
+            } else {
+                // Expanded: edge goes to first child inside
+                estimatedTargetY = box.y + FIRST_CHILD_OFFSET;
+            }
+            const siblingEdgeTurnY = (sourceY + estimatedTargetY) / 2;
+            
+            // Use the sibling edge's turn point if it's above the box, otherwise use offset before box
+            let splitY: number;
+            if (siblingEdgeTurnY < boxTop) {
+                splitY = siblingEdgeTurnY;
+            } else {
+                // Fallback: branch just before the box
+                splitY = boxTop - 30;
+            }
+            
+            // Make sure splitY is below current position
+            splitY = Math.max(splitY, currentY + MARGIN);
+
             // Decide to go left or right based on target position
             const goRight = targetX > boxCenterX;
 
             if (goRight) {
                 // Route around right side
-                if (currentY < boxTop) {
-                    // Coming from above - go down to box level, then right, then continue
-                    waypoints.push({ x: currentX, y: boxTop });
-                    waypoints.push({ x: boxRight, y: boxTop });
+                if (currentY < splitY) {
+                    // Go down to split point, then go right around the box
+                    waypoints.push({ x: currentX, y: splitY });
+                    waypoints.push({ x: boxRight, y: splitY });
                     waypoints.push({ x: boxRight, y: boxBottom });
                     currentX = boxRight;
                     currentY = boxBottom;
                 } else {
-                    // Already at box level or below
+                    // Already past split point
                     waypoints.push({ x: boxRight, y: currentY });
                     currentX = boxRight;
                 }
             } else {
                 // Route around left side
-                if (currentY < boxTop) {
-                    waypoints.push({ x: currentX, y: boxTop });
-                    waypoints.push({ x: boxLeft, y: boxTop });
+                if (currentY < splitY) {
+                    waypoints.push({ x: currentX, y: splitY });
+                    waypoints.push({ x: boxLeft, y: splitY });
                     waypoints.push({ x: boxLeft, y: boxBottom });
                     currentX = boxLeft;
                     currentY = boxBottom;
@@ -224,30 +258,34 @@
     // Debug log - check the problematic edge
     $: if (id === 'branch_pipeline->update_db') {
         const boxes = get(groupBoxesStore);
-        const srcGrp = getNodeGroup(source);
-        const tgtGrp = getNodeGroup(target);
-        const midY = (sourceY + targetY) / 2;
+        const naturalMidY = (sourceY + targetY) / 2;
         
         console.log(`=== DEBUG for ${id} ===`);
-        console.log(`Source: ${source}, group: ${srcGrp}`);
-        console.log(`Target: ${target}, group: ${tgtGrp}`);
-        console.log(`Smoothstep path: (${sourceX?.toFixed(0)}, ${sourceY?.toFixed(0)}) -> (${sourceX?.toFixed(0)}, ${midY?.toFixed(0)}) -> (${targetX?.toFixed(0)}, ${midY?.toFixed(0)}) -> (${targetX?.toFixed(0)}, ${targetY?.toFixed(0)})`);
+        console.log(`sourceY: ${sourceY?.toFixed(0)}, targetY: ${targetY?.toFixed(0)}`);
+        console.log(`naturalMidY (turn point): ${naturalMidY?.toFixed(0)}`);
         
-        // Check which boxes would be avoided
-        const boxesToAvoid = boxes.filter(box => {
-            const boxGroupId = box.id.replace('group-', '');
-            if (srcGrp && (boxGroupId === srcGrp || srcGrp.startsWith(boxGroupId + '.') || boxGroupId.startsWith(srcGrp + '.'))) return false;
-            if (tgtGrp && (boxGroupId === tgtGrp || tgtGrp.startsWith(boxGroupId + '.') || boxGroupId.startsWith(tgtGrp + '.'))) return false;
-            return true;
-        });
+        // Find deploy_mono_airflow box
+        const deployBox = boxes.find(b => b.id === 'group-deploy_mono_airflow');
+        if (deployBox) {
+            const boxTop = deployBox.y - MARGIN;
+            console.log(`deploy_mono_airflow box: y=${deployBox.y?.toFixed(0)}, collapsed=${deployBox.collapsed}`);
+            
+            // Calculate what we estimate
+            const estimatedTargetY = deployBox.collapsed ? deployBox.y : deployBox.y + 70;
+            const siblingEdgeTurnY = (sourceY + estimatedTargetY) / 2;
+            console.log(`estimatedTargetY: ${estimatedTargetY?.toFixed(0)}`);
+            console.log(`siblingEdgeTurnY (our calculated split): ${siblingEdgeTurnY?.toFixed(0)}`);
+        }
         
-        console.log(`Checking smoothstep intersections with ${boxesToAvoid.length} boxes:`);
-        boxesToAvoid.forEach(b => {
-            const seg1 = lineIntersectsBox(sourceX, sourceY, sourceX, midY, b);
-            const seg2 = lineIntersectsBox(sourceX, midY, targetX, midY, b);
-            const seg3 = lineIntersectsBox(targetX, midY, targetX, targetY, b);
-            console.log(`  ${b.id}: seg1=${seg1}, seg2=${seg2}, seg3=${seg3}`);
-        });
+        console.log(`Final path: ${path}`);
+    }
+    
+    // Also log the edge going INTO the group for comparison
+    $: if (id === 'branch_pipeline->deploy_mono_airflow.gitlab_git_submodules_pipeline' || id === 'branch_pipeline->group-deploy_mono_airflow') {
+        const midY = (sourceY + targetY) / 2;
+        console.log(`=== DEBUG for edge INTO group (${id}) ===`);
+        console.log(`sourceY: ${sourceY?.toFixed(0)}, targetY: ${targetY?.toFixed(0)}`);
+        console.log(`Turn Y (midY): ${midY?.toFixed(0)}`);
     }
 </script>
 
