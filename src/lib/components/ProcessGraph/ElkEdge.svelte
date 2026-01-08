@@ -103,11 +103,21 @@
         const boxes = get(groupBoxesStore);
         const sourceGroup = getNodeGroup(source);
         const targetGroup = getNodeGroup(target);
+        
+        // Check if source or target IS a group node itself
+        const sourceIsGroup = source.startsWith("group-");
+        const targetIsGroup = target.startsWith("group-");
+        const sourceGroupId = sourceIsGroup ? source.replace("group-", "") : null;
+        const targetGroupId = targetIsGroup ? target.replace("group-", "") : null;
 
         // Filter boxes to only those we need to avoid
-        // Don't avoid boxes that contain source or target
+        // Don't avoid boxes that contain source or target, or ARE the source/target
         const boxesToAvoid = boxes.filter((box) => {
             const boxGroupId = box.id.replace("group-", "");
+
+            // Don't avoid if the box IS the source or target group
+            if (sourceGroupId && boxGroupId === sourceGroupId) return false;
+            if (targetGroupId && boxGroupId === targetGroupId) return false;
 
             // Don't avoid if source or target is inside this group
             if (sourceGroup && isAncestor(boxGroupId, sourceGroup))

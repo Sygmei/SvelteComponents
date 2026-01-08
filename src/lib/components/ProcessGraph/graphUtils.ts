@@ -752,7 +752,8 @@ function unifiedElkToSvelteFlow(
     // Build group bounding boxes array for edge routing
     const groupBoxes: GroupBox[] = [];
     absolutePositions.forEach((pos, id) => {
-        if (id.startsWith('group-') && !collapsedGroups.has(id)) {
+        // Include all groups (both expanded and collapsed) for edge routing
+        if (id.startsWith('group-')) {
             groupBoxes.push({
                 id,
                 x: pos.x,
