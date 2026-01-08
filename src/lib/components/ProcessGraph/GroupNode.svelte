@@ -104,7 +104,7 @@
 >
     <!-- Group header -->
     <div
-        class="absolute -top-0 left-4 flex items-center gap-2 rounded-b-lg px-3 py-1.5 {colors.headerBg} border-x-2 border-b-2 border-dashed {colors.border}"
+        class="absolute -top-0 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-b-lg px-3 py-1.5 {colors.headerBg} border-x-2 border-b-2 border-dashed {colors.border}"
     >
         <svg
             class="h-4 w-4 {colors.text}"
@@ -124,11 +124,5 @@
 <style>
     .group-node {
         font-family: "Inter", system-ui, sans-serif;
-    }
-
-    :global(.svelte-flow__node-group) {
-        background: transparent !important;
-        border: none !important;
-        outline: none !important;
     }
 </style>

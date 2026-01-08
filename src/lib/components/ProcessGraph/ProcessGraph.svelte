@@ -229,6 +229,14 @@
         font-family: "Inter", system-ui, sans-serif;
     }
 
+    /* Remove default group node styling */
+    :global(.svelte-flow__node-group) {
+        background: transparent !important;
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+    }
+
     :global(.process-flow .svelte-flow__edge-path) {
         stroke-linecap: round;
     }
