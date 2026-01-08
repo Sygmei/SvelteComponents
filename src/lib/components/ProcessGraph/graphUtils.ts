@@ -9,6 +9,7 @@ const NODE_WIDTH = 180;
 const NODE_HEIGHT = 80;
 const GROUP_PADDING = 40;
 const GROUP_HEADER = 40;
+const PORT_SIZE = 1; // Invisible port nodes for entry/exit points
 
 const elk = new ELK();
 
@@ -22,6 +23,15 @@ export interface GroupBox {
     collapsed: boolean;
 }
 export const groupBoxesStore = writable<GroupBox[]>([]);
+
+// Store for group entry/exit port positions
+export interface GroupPort {
+    groupId: string;
+    type: 'entry' | 'exit';
+    x: number;
+    y: number;
+}
+export const groupPortsStore = writable<Map<string, GroupPort>>(new Map());
 
 /**
  * Find the common ancestor group of two groups (or 'root' if none)
@@ -752,6 +762,9 @@ function unifiedElkToSvelteFlow(
     
     // Build group bounding boxes array for edge routing
     const groupBoxes: GroupBox[] = [];
+    // Also calculate entry/exit port positions for each group
+    const groupPorts = new Map<string, GroupPort>();
+    
     absolutePositions.forEach((pos, id) => {
         // Include all groups (both expanded and collapsed) for edge routing
         if (id.startsWith('group-')) {
@@ -763,11 +776,30 @@ function unifiedElkToSvelteFlow(
                 height: pos.height,
                 collapsed: collapsedGroups.has(id)
             });
+            
+            // Calculate entry port (top-center, above the header)
+            const entryPortId = `${id}-entry`;
+            groupPorts.set(entryPortId, {
+                groupId: id,
+                type: 'entry',
+                x: pos.x + pos.width / 2,
+                y: pos.y - 10 // Just above the group
+            });
+            
+            // Calculate exit port (bottom-center, below the group)
+            const exitPortId = `${id}-exit`;
+            groupPorts.set(exitPortId, {
+                groupId: id,
+                type: 'exit',
+                x: pos.x + pos.width / 2,
+                y: pos.y + pos.height + 10 // Just below the group
+            });
         }
     });
     
-    // Update the global store for edge routing
+    // Update the global stores for edge routing
     groupBoxesStore.set(groupBoxes);
+    groupPortsStore.set(groupPorts);
 
     function extractNodes(elkNode: ElkNode, parentId?: string): void {
         if (!elkNode.children) return;

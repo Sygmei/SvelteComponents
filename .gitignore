@@ -21,3 +21,4 @@ symlink-from
 .idea/
 .claude
 **/process_graph_dataset*.json
+.playwright-mcp/
