@@ -98,10 +98,9 @@
 </script>
 
 <div
-    class="group-node h-full w-full rounded-2xl border-2 border-dashed transition-all duration-300 {colors.bg} {colors.border} {selected
+    class="group-node absolute inset-0 rounded-2xl border-2 border-dashed transition-all duration-300 {colors.bg} {colors.border} {selected
         ? 'shadow-lg'
         : ''}"
-    style="min-width: 100%; min-height: 100%;"
 >
     <!-- Group header -->
     <div
@@ -125,5 +124,11 @@
 <style>
     .group-node {
         font-family: "Inter", system-ui, sans-serif;
+    }
+
+    :global(.svelte-flow__node-group) {
+        background: transparent !important;
+        border: none !important;
+        outline: none !important;
     }
 </style>
