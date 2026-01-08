@@ -188,19 +188,8 @@
             turnY = Math.min(turnY, targetY - 20);
         }
         
-        // Simple orthogonal path: down, across, down
-        waypoints.push({ x: sourceX, y: turnY });
-        waypoints.push({ x: targetX, y: turnY });
-        waypoints.push({ x: targetX, y: targetY });
-        
-        // Check if we need to route around any boxes
-        // This handles cases where the horizontal segment would pass through a group
-        const horizontalY = turnY;
-        const minX = Math.min(sourceX, targetX);
-        const maxX = Math.max(sourceX, targetX);
-        
-        // Find boxes that intersect our horizontal path
-        const intersectingBoxes = boxes.filter(box => {
+        // First, identify all boxes we need to avoid (not containing source or target)
+        const boxesToAvoid = boxes.filter(box => {
             // Check if source or target is inside this box (if so, don't avoid it)
             if (isInsideGroup(source, box.id) || isInsideGroup(target, box.id)) {
                 return false;
@@ -209,24 +198,52 @@
             if (source === box.id || target === box.id) {
                 return false;
             }
-            
-            // Check horizontal intersection
+            return true;
+        });
+        
+        // Check if a smoothstep path (down, across, down) intersects any boxes
+        function pathIntersectsBox(turnY: number, box: GroupBox): boolean {
             const boxLeft = box.x - MARGIN;
             const boxRight = box.x + box.width + MARGIN;
             const boxTop = box.y - MARGIN;
             const boxBottom = box.y + box.height + MARGIN;
             
-            // Does our horizontal segment cross this box?
-            if (horizontalY < boxTop || horizontalY > boxBottom) return false;
-            if (maxX < boxLeft || minX > boxRight) return false;
+            // Check vertical segment 1: sourceX, sourceY -> sourceX, turnY
+            if (sourceX > boxLeft && sourceX < boxRight) {
+                const segTop = Math.min(sourceY, turnY);
+                const segBottom = Math.max(sourceY, turnY);
+                if (segBottom > boxTop && segTop < boxBottom) return true;
+            }
             
-            return true;
-        });
+            // Check horizontal segment: sourceX, turnY -> targetX, turnY
+            if (turnY > boxTop && turnY < boxBottom) {
+                const segLeft = Math.min(sourceX, targetX);
+                const segRight = Math.max(sourceX, targetX);
+                if (segRight > boxLeft && segLeft < boxRight) return true;
+            }
+            
+            // Check vertical segment 2: targetX, turnY -> targetX, targetY
+            if (targetX > boxLeft && targetX < boxRight) {
+                const segTop = Math.min(turnY, targetY);
+                const segBottom = Math.max(turnY, targetY);
+                if (segBottom > boxTop && segTop < boxBottom) return true;
+            }
+            
+            return false;
+        }
+        
+        // Find boxes that the simple path would intersect
+        const intersectingBoxes = boxesToAvoid.filter(box => pathIntersectsBox(turnY, box));
         
         if (intersectingBoxes.length > 0) {
             // Need to route around boxes
-            return buildAvoidancePath(sourceX, sourceY, targetX, targetY, intersectingBoxes);
+            return buildAvoidancePath(sourceX, sourceY, targetX, targetY, boxesToAvoid);
         }
+        
+        // Simple orthogonal path: down, across, down
+        waypoints.push({ x: sourceX, y: turnY });
+        waypoints.push({ x: targetX, y: turnY });
+        waypoints.push({ x: targetX, y: targetY });
         
         // Build SVG path
         return buildPathFromWaypoints(waypoints);
@@ -244,29 +261,78 @@
     function buildAvoidancePath(
         srcX: number, srcY: number, 
         tgtX: number, tgtY: number, 
-        obstacles: GroupBox[]
+        allObstacles: GroupBox[]
     ): string {
-        // Sort obstacles by Y position
-        obstacles.sort((a, b) => a.y - b.y);
-        
         const waypoints: Array<{ x: number; y: number }> = [];
         waypoints.push({ x: srcX, y: srcY });
         
         let currentX = srcX;
         let currentY = srcY;
         
-        for (const box of obstacles) {
+        // Filter to only obstacles that are between source and target vertically
+        // and could potentially block our path
+        const relevantObstacles = allObstacles.filter(box => {
+            const boxTop = box.y - MARGIN;
+            const boxBottom = box.y + box.height + MARGIN;
+            
+            // Box must be in the Y range we're traversing
+            if (boxBottom < srcY || boxTop > tgtY) return false;
+            
+            // Box must overlap with either srcX or tgtX column, or be between them
+            const boxLeft = box.x - MARGIN;
+            const boxRight = box.x + box.width + MARGIN;
+            const minX = Math.min(srcX, tgtX);
+            const maxX = Math.max(srcX, tgtX);
+            
+            // If box is completely to the left or right of our X range, skip it
+            if (boxRight < minX || boxLeft > maxX) {
+                // Unless our vertical segment passes through it
+                if (srcX > boxLeft && srcX < boxRight) return true;
+                if (tgtX > boxLeft && tgtX < boxRight) return true;
+                return false;
+            }
+            
+            return true;
+        });
+        
+        // Sort obstacles by Y position
+        relevantObstacles.sort((a, b) => a.y - b.y);
+        
+        for (const box of relevantObstacles) {
             const boxLeft = box.x - MARGIN;
             const boxRight = box.x + box.width + MARGIN;
             const boxTop = box.y - MARGIN;
             const boxBottom = box.y + box.height + MARGIN;
             const boxCenterX = box.x + box.width / 2;
             
+            // Check if we actually need to go around this box
+            // (our current X position would pass through it)
+            const wouldPassThrough = currentX > boxLeft && currentX < boxRight && 
+                                    currentY < boxBottom && tgtY > boxTop;
+            
+            if (!wouldPassThrough) continue;
+            
             // Decide to go left or right based on target position
             const goRight = tgtX > boxCenterX;
             
-            // First, go down to just before the box
-            const splitY = Math.max(boxTop - TURN_CLEARANCE, currentY + 20);
+            // Calculate "smart" split point - align with where sibling edges going INTO this group would turn
+            // For edges entering a group, the turn point is: entryBox.y - TURN_CLEARANCE
+            // This is the same calculation used in getPath() for entryGroups
+            const siblingTurnY = box.y - TURN_CLEARANCE;
+            
+            // Use the sibling turn point if it's above the source with enough space
+            // Otherwise fall back to TURN_CLEARANCE above the box
+            let splitY: number;
+            if (siblingTurnY > srcY + 20) {
+                // Sibling turn point is safely below the source - use it
+                splitY = siblingTurnY;
+            } else {
+                // Sibling turn would be too close to source - use clearance
+                splitY = boxTop - TURN_CLEARANCE;
+            }
+            
+            // Make sure splitY is below current position
+            splitY = Math.max(splitY, currentY + 20);
             if (splitY > currentY) {
                 waypoints.push({ x: currentX, y: splitY });
                 currentY = splitY;
@@ -287,7 +353,7 @@
             }
         }
         
-        // Connect to target
+        // Connect to target with orthogonal segments
         if (currentX !== tgtX) {
             waypoints.push({ x: tgtX, y: currentY });
         }
