@@ -43,6 +43,8 @@
   "dependencies": {
     "@fortawesome/free-solid-svg-icons": "^7.0.1",
     "@tailwindcss/vite": "^4.1.11",
+    "@xyflow/svelte": "^1.5.0",
+    "elkjs": "^0.11.0",
     "svelte-awesome": "^3.3.5"
   }
 }
