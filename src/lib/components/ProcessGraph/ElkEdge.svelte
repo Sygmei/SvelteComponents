@@ -312,7 +312,31 @@
             if (!wouldPassThrough) continue;
             
             // Decide to go left or right based on target position
-            const goRight = tgtX > boxCenterX;
+            // But also check if going that direction would violate clearance of another box
+            let goRight = tgtX > boxCenterX;
+            
+            // Check if our chosen side would be too close to another group
+            const tentativeX = goRight ? boxRight : boxLeft;
+            for (const otherBox of allObstacles) {
+                if (otherBox.id === box.id) continue;
+                const otherLeft = otherBox.x - TURN_CLEARANCE;
+                const otherRight = otherBox.x + otherBox.width + TURN_CLEARANCE;
+                
+                // If tentativeX is inside another box's clearance zone, try the other side
+                if (tentativeX > otherLeft && tentativeX < otherRight) {
+                    // Check if the Y ranges overlap
+                    const otherTop = otherBox.y - TURN_CLEARANCE;
+                    const otherBottom = otherBox.y + otherBox.height + TURN_CLEARANCE;
+                    if (boxBottom > otherTop && boxTop < otherBottom) {
+                        // The other box is at a similar Y level - switch sides
+                        goRight = !goRight;
+                        break;
+                    }
+                }
+            }
+            
+            // Recalculate based on final decision
+            const finalX = goRight ? boxRight : boxLeft;
             
             // Calculate "smart" split point - align with where sibling edges going INTO this group would turn
             // For edges entering a group, the turn point is: entryBox.y - TURN_CLEARANCE
@@ -337,19 +361,11 @@
                 currentY = splitY;
             }
             
-            if (goRight) {
-                // Go right around the box
-                waypoints.push({ x: boxRight, y: currentY });
-                waypoints.push({ x: boxRight, y: boxBottom });
-                currentX = boxRight;
-                currentY = boxBottom;
-            } else {
-                // Go left around the box
-                waypoints.push({ x: boxLeft, y: currentY });
-                waypoints.push({ x: boxLeft, y: boxBottom });
-                currentX = boxLeft;
-                currentY = boxBottom;
-            }
+            // Go around the box using the calculated side
+            waypoints.push({ x: finalX, y: currentY });
+            waypoints.push({ x: finalX, y: boxBottom });
+            currentX = finalX;
+            currentY = boxBottom;
         }
         
         // Connect to target with orthogonal segments
