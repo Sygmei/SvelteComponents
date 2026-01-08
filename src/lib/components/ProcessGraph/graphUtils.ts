@@ -2,6 +2,7 @@ import type { Process, ProcessNodeData } from './types';
 import type { Node, Edge } from '@xyflow/svelte';
 import ELK from 'elkjs/lib/elk.bundled.js';
 import type { ElkNode, ElkExtendedEdge } from 'elkjs';
+import { writable } from 'svelte/store';
 
 // Node dimensions - constants
 const NODE_WIDTH = 180;
@@ -10,6 +11,16 @@ const GROUP_PADDING = 40;
 const GROUP_HEADER = 40;
 
 const elk = new ELK();
+
+// Exported store for group bounding boxes - used by ElkEdge for obstacle avoidance
+export interface GroupBox {
+    id: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+export const groupBoxesStore = writable<GroupBox[]>([]);
 
 /**
  * Find the common ancestor group of two groups (or 'root' if none)
@@ -168,7 +179,8 @@ async function layoutGroup(
             'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
             'elk.padding': `[top=${GROUP_HEADER + GROUP_PADDING},left=${GROUP_PADDING},bottom=${GROUP_PADDING},right=${GROUP_PADDING}]`,
             'elk.alignment': 'CENTER',
-            'elk.contentAlignment': 'H_CENTER V_TOP'
+            'elk.contentAlignment': 'H_CENTER V_TOP',
+            'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES'
         },
         children,
         edges
@@ -255,7 +267,8 @@ async function layoutRoot(
             'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
             'elk.padding': '[top=20,left=20,bottom=20,right=20]',
             'elk.alignment': 'CENTER',
-            'elk.contentAlignment': 'H_CENTER V_TOP'
+            'elk.contentAlignment': 'H_CENTER V_TOP',
+            'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES'
         },
         children,
         edges
@@ -567,8 +580,299 @@ function getEffectiveNodeId(nodeId: string, collapsedGroups: Set<string>, groups
 }
 
 /**
+ * Build a unified hierarchical ELK graph with all nodes and edges
+ * This allows ELK to properly route edges around group boundaries
+ */
+function buildUnifiedElkGraph(
+    processes: Process[],
+    groups: Map<string, GroupInfo>,
+    nodeWidths: Map<string, number>,
+    collapsedGroups: Set<string>
+): ElkNode {
+    const graph: ElkNode = {
+        id: 'root',
+        layoutOptions: {
+            'elk.algorithm': 'layered',
+            'elk.direction': 'DOWN',
+            'elk.layered.spacing.nodeNodeBetweenLayers': '80',
+            'elk.layered.spacing.edgeNodeBetweenLayers': '30',
+            'elk.spacing.nodeNode': '50',
+            'elk.spacing.edgeEdge': '20',
+            'elk.spacing.edgeNode': '30',
+            'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
+            'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
+            'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+            'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
+            'elk.padding': '[top=20,left=20,bottom=20,right=20]',
+            'elk.alignment': 'CENTER',
+            'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
+            'elk.edgeRouting': 'ORTHOGONAL'
+        },
+        children: [],
+        edges: []
+    };
+
+    // Build group nodes recursively
+    function buildGroupNode(group: GroupInfo): ElkNode {
+        const groupNodeId = `group-${group.id}`;
+        const isCollapsed = collapsedGroups.has(groupNodeId);
+        
+        if (isCollapsed) {
+            // Collapsed group is a simple node
+            return {
+                id: groupNodeId,
+                width: COLLAPSED_GROUP_WIDTH,
+                height: COLLAPSED_GROUP_HEIGHT,
+                layoutOptions: {
+                    'elk.portConstraints': 'FREE'
+                }
+            };
+        }
+        
+        const elkGroup: ElkNode = {
+            id: groupNodeId,
+            layoutOptions: {
+                'elk.algorithm': 'layered',
+                'elk.direction': 'DOWN',
+                'elk.layered.spacing.nodeNodeBetweenLayers': '60',
+                'elk.spacing.nodeNode': '40',
+                'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
+                'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
+                'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+                'elk.padding': `[top=${GROUP_HEADER + GROUP_PADDING},left=${GROUP_PADDING},bottom=${GROUP_PADDING},right=${GROUP_PADDING}]`,
+                'elk.alignment': 'CENTER',
+                'elk.contentAlignment': 'H_CENTER V_TOP'
+            },
+            children: [],
+            labels: [{ text: group.path[group.path.length - 1] }]
+        };
+        
+        // Add child groups
+        group.childGroups.forEach(childGroupId => {
+            const childGroup = groups.get(childGroupId);
+            if (childGroup) {
+                // Check if parent (this group) is collapsed - if so, skip children
+                if (!isCollapsed) {
+                    elkGroup.children!.push(buildGroupNode(childGroup));
+                }
+            }
+        });
+        
+        // Add processes directly in this group
+        group.processes.forEach(pName => {
+            elkGroup.children!.push({
+                id: pName,
+                width: nodeWidths.get(pName) || NODE_WIDTH,
+                height: NODE_HEIGHT
+            });
+        });
+        
+        return elkGroup;
+    }
+
+    // Add root-level processes
+    processes.forEach(p => {
+        if (!p.name.includes('.')) {
+            graph.children!.push({
+                id: p.name,
+                width: nodeWidths.get(p.name) || NODE_WIDTH,
+                height: NODE_HEIGHT
+            });
+        }
+    });
+
+    // Add root-level groups
+    const rootGroups = Array.from(groups.values()).filter(g => !g.parentId);
+    rootGroups.sort((a, b) => a.id.localeCompare(b.id));
+    rootGroups.forEach(group => {
+        graph.children!.push(buildGroupNode(group));
+    });
+
+    // Add ALL edges at the root level - ELK with INCLUDE_CHILDREN will route them
+    const edges: ElkExtendedEdge[] = [];
+    processes.forEach(process => {
+        process.upstream_processes.forEach(upstream => {
+            // Get effective IDs (redirect to collapsed groups if needed)
+            const effectiveSource = getEffectiveNodeId(upstream, collapsedGroups, groups);
+            const effectiveTarget = getEffectiveNodeId(process.name, collapsedGroups, groups);
+            
+            // Skip self-loops
+            if (effectiveSource === effectiveTarget) return;
+            
+            edges.push({
+                id: `${effectiveSource}->${effectiveTarget}`,
+                sources: [effectiveSource],
+                targets: [effectiveTarget]
+            });
+        });
+    });
+    graph.edges = edges;
+
+    return graph;
+}
+
+/**
+ * Convert unified ELK layout to Svelte Flow format
+ */
+function unifiedElkToSvelteFlow(
+    elkGraph: ElkNode,
+    processes: Process[],
+    processMap: Map<string, Process>,
+    groups: Map<string, GroupInfo>,
+    collapsedGroups: Set<string>
+): { nodes: Node[]; edges: Edge[] } {
+    const nodes: Node[] = [];
+    const edges: Edge[] = [];
+    
+    // Build absolute positions for all nodes (needed for edge routing)
+    const absolutePositions = new Map<string, { x: number; y: number; width: number; height: number }>();
+    
+    function calculateAbsolutePositions(elkNode: ElkNode, offsetX: number = 0, offsetY: number = 0): void {
+        if (!elkNode.children) return;
+        
+        elkNode.children.forEach(child => {
+            const absX = offsetX + (child.x || 0);
+            const absY = offsetY + (child.y || 0);
+            absolutePositions.set(child.id, {
+                x: absX,
+                y: absY,
+                width: child.width || 0,
+                height: child.height || 0
+            });
+            
+            // Recurse for groups
+            if (child.id.startsWith('group-') && !collapsedGroups.has(child.id)) {
+                calculateAbsolutePositions(child, absX, absY);
+            }
+        });
+    }
+    
+    calculateAbsolutePositions(elkGraph);
+    
+    // Build group bounding boxes array for edge routing
+    const groupBoxes: GroupBox[] = [];
+    absolutePositions.forEach((pos, id) => {
+        if (id.startsWith('group-') && !collapsedGroups.has(id)) {
+            groupBoxes.push({
+                id,
+                x: pos.x,
+                y: pos.y,
+                width: pos.width,
+                height: pos.height
+            });
+        }
+    });
+    
+    // Update the global store for edge routing
+    groupBoxesStore.set(groupBoxes);
+
+    function extractNodes(elkNode: ElkNode, parentId?: string): void {
+        if (!elkNode.children) return;
+
+        elkNode.children.forEach(child => {
+            const isGroup = child.id.startsWith('group-');
+            
+            if (isGroup) {
+                const groupId = child.id.replace('group-', '');
+                const group = groups.get(groupId);
+                const isCollapsed = collapsedGroups.has(child.id);
+                
+                nodes.push({
+                    id: child.id,
+                    type: 'group',
+                    position: { x: child.x || 0, y: child.y || 0 },
+                    data: {
+                        label: group?.path[group.path.length - 1] || groupId,
+                        fullPath: group?.path.join('.') || groupId,
+                        collapsed: isCollapsed
+                    },
+                    style: `width: ${child.width}px; height: ${child.height}px;`,
+                    ...(parentId && { parentId })
+                });
+
+                // Recurse into non-collapsed groups
+                if (!isCollapsed) {
+                    extractNodes(child, child.id);
+                }
+            } else {
+                const process = processMap.get(child.id);
+                if (process) {
+                    const groupPath = extractGroup(process.name);
+                    
+                    nodes.push({
+                        id: child.id,
+                        type: 'process',
+                        position: { x: child.x || 0, y: child.y || 0 },
+                        data: {
+                            label: process.name,
+                            status: process.status,
+                            errorMessage: process.last_run_error_message,
+                            group: groupPath
+                        } satisfies ProcessNodeData,
+                        ...(parentId && { parentId })
+                    });
+                }
+            }
+        });
+    }
+
+    extractNodes(elkGraph);
+
+    // Extract edges from ELK with their routed sections
+    const addedEdges = new Set<string>();
+
+    function extractEdgesFromElk(elkNode: ElkNode, offsetX: number = 0, offsetY: number = 0): void {
+        if (elkNode.edges) {
+            elkNode.edges.forEach(elkEdge => {
+                const sourceId = elkEdge.sources[0];
+                const targetId = elkEdge.targets[0];
+                
+                // Get effective IDs for collapsed groups
+                const effectiveSource = getEffectiveNodeId(sourceId, collapsedGroups, groups);
+                const effectiveTarget = getEffectiveNodeId(targetId, collapsedGroups, groups);
+                
+                if (effectiveSource === effectiveTarget) return;
+                
+                const edgeId = `${effectiveSource}->${effectiveTarget}`;
+                if (addedEdges.has(edgeId)) return;
+                addedEdges.add(edgeId);
+                
+                // Get source status for edge styling
+                const sourceProcess = processMap.get(sourceId) || processMap.get(effectiveSource.replace('group-', ''));
+                const targetProcess = processMap.get(targetId) || processMap.get(effectiveTarget.replace('group-', ''));
+                const sourceStatus = sourceProcess?.status || 'NOTSTARTED';
+                const targetStatus = targetProcess?.status || 'NOTSTARTED';
+                
+                // Use custom elk edge type - it reads group boxes from store
+                edges.push({
+                    id: edgeId,
+                    source: effectiveSource,
+                    target: effectiveTarget,
+                    type: 'elk',
+                    animated: targetStatus === 'INPROGRESS',
+                    style: getEdgeStyle(sourceStatus, targetStatus)
+                });
+            });
+        }
+        
+        // Recurse into children
+        if (elkNode.children) {
+            elkNode.children.forEach(child => {
+                if (child.id.startsWith('group-') && !collapsedGroups.has(child.id)) {
+                    extractEdgesFromElk(child, offsetX + (child.x || 0), offsetY + (child.y || 0));
+                }
+            });
+        }
+    }
+    
+    extractEdgesFromElk(elkGraph);
+
+    return { nodes, edges };
+}
+
+/**
  * Converts process data to Svelte Flow nodes and edges with hierarchical ELK layout
- * Layout is applied bottom-up: deepest groups first, then parent groups treat children as single nodes
+ * Uses unified ELK graph for proper edge routing around groups
  */
 export async function processesToFlowAsync(
     processes: Process[], 
@@ -586,61 +890,14 @@ export async function processesToFlowAsync(
         nodeWidths.set(p.name, calculateNodeWidth(p.name));
     });
 
-    // Build edges map for quick lookup
-    const edgesInGroup = new Map<string, { sources: string[]; targets: string[] }[]>();
+    // Build unified hierarchical ELK graph
+    const elkGraph = buildUnifiedElkGraph(processes, groups, nodeWidths, collapsedGroups);
     
-    // Collect edges that are internal to each group (considering collapsed state)
-    processes.forEach(process => {
-        const targetGroup = extractGroup(process.name);
-        process.upstream_processes.forEach(upstream => {
-            const sourceGroup = extractGroup(upstream);
-            // Find the common ancestor group for this edge
-            const commonGroup = findCommonAncestor(sourceGroup, targetGroup);
-            
-            if (!edgesInGroup.has(commonGroup)) {
-                edgesInGroup.set(commonGroup, []);
-            }
-            edgesInGroup.get(commonGroup)!.push({
-                sources: [upstream],
-                targets: [process.name]
-            });
-        });
-    });
-
-    // Sort groups by depth (deepest first for bottom-up layout)
-    const sortedGroups = Array.from(groups.values()).sort((a, b) => b.path.length - a.path.length);
-    
-    // Store computed sizes for each group after layout
-    const groupSizes = new Map<string, { width: number; height: number }>();
-    // Store internal layouts for each group
-    const groupInternalLayouts = new Map<string, Map<string, { x: number; y: number; width: number; height: number }>>();
-
-    // Layout each group bottom-up (skip collapsed groups - they have fixed size)
-    for (const group of sortedGroups) {
-        const groupNodeId = `group-${group.id}`;
-        
-        // Check if this group or any ancestor is collapsed
-        if (collapsedGroups.has(groupNodeId)) {
-            // Use fixed collapsed size
-            groupSizes.set(group.id, { width: COLLAPSED_GROUP_WIDTH, height: COLLAPSED_GROUP_HEIGHT });
-            continue;
-        }
-        
-        // Check if parent is collapsed (skip layout for children of collapsed groups)
-        const parentCollapsed = group.parentId && collapsedGroups.has(`group-${group.parentId}`);
-        if (parentCollapsed) {
-            continue;
-        }
-        
-        const layout = await layoutGroup(group, groups, nodeWidths, groupSizes, edgesInGroup, groupInternalLayouts, collapsedGroups);
-        groupSizes.set(group.id, { width: layout.width, height: layout.height });
-    }
-
-    // Now layout the root level
-    const rootLayout = await layoutRoot(processes, groups, nodeWidths, groupSizes, edgesInGroup, collapsedGroups);
+    // Run ELK layout
+    const layoutedGraph = await elk.layout(elkGraph);
     
     // Convert to Svelte Flow format
-    return buildSvelteFlowFromLayoutsWithCollapse(processes, processMap, groups, rootLayout, groupInternalLayouts, groupSizes, collapsedGroups);
+    return unifiedElkToSvelteFlow(layoutedGraph, processes, processMap, groups, collapsedGroups);
 }
 
 /**

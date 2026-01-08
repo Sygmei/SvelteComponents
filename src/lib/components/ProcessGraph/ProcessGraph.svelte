@@ -12,6 +12,7 @@
 
     import ProcessNode from "./ProcessNode.svelte";
     import GroupNode from "./GroupNode.svelte";
+    import ElkEdge from "./ElkEdge.svelte";
     import { processesToFlow, processesToFlowAsync, getProcessStats } from "./graphUtils";
     import type { ProcessGraphData } from "./types";
     import { onMount } from "svelte";
@@ -35,6 +36,10 @@
     const nodeTypes = {
         process: ProcessNode,
         group: GroupNode,
+    };
+
+    const edgeTypes = {
+        elk: ElkEdge,
     };
 
     // Use sync layout as initial fallback, then update with ELK async
@@ -217,6 +222,7 @@
     <!-- Flow Canvas -->
     <SvelteFlow
         {nodeTypes}
+        {edgeTypes}
         bind:nodes={flowNodes}
         bind:edges={flowEdges}
         fitView={fitViewOnLoad}
@@ -224,7 +230,7 @@
         maxZoom={2}
         nodesDraggable={false}
         defaultEdgeOptions={{
-            type: "smoothstep",
+            type: "elk",
             style: "stroke-width: 2px;",
         }}
         proOptions={{ hideAttribution: true }}
