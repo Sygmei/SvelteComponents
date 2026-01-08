@@ -537,7 +537,7 @@ function calculateNodeWidth(_processName: string): number {
 }
 
 // Collapsed group dimensions
-const COLLAPSED_GROUP_WIDTH = 200;
+const COLLAPSED_GROUP_WIDTH = 280;
 const COLLAPSED_GROUP_HEIGHT = 60;
 
 /**

@@ -116,37 +116,37 @@
 </script>
 
 {#if isCollapsed}
-    <!-- Collapsed state: small box with handles -->
-    <div
+    <!-- Collapsed state: compact clickable card -->
+    <button
         class="group-node w-full h-full rounded-xl border-2 transition-all duration-300 {colors.bg} {colors.border} {selected
             ? 'shadow-lg'
-            : ''} flex items-center justify-center"
+            : ''} flex items-center justify-center gap-3 px-4 hover:opacity-90 cursor-pointer"
+        onclick={handleHeaderClick}
     >
-        <!-- Header (clickable to expand) -->
-        <button
-            class="flex items-center gap-2 px-3 py-2 rounded-lg {colors.headerBg} hover:opacity-80 transition-opacity cursor-pointer"
-            onclick={handleHeaderClick}
+        <!-- Expand chevron -->
+        <svg
+            class="h-4 w-4 {colors.text} transition-transform flex-shrink-0"
+            fill="currentColor"
+            viewBox="0 0 20 20"
         >
-            <svg
-                class="h-4 w-4 {colors.text} transition-transform"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-            >
-                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-            </svg>
-            <svg
-                class="h-4 w-4 {colors.text}"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-            >
-                <path
-                    d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"
-                />
-            </svg>
-            <span class="font-semibold text-sm {colors.text}">
-                {data.label}
-            </span>
-        </button>
+            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+        </svg>
+        
+        <!-- Folder icon -->
+        <svg
+            class="h-5 w-5 {colors.text} flex-shrink-0"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+        >
+            <path
+                d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"
+            />
+        </svg>
+        
+        <!-- Label -->
+        <span class="font-semibold text-sm {colors.text} truncate">
+            {data.label}
+        </span>
         
         <!-- Input handle (top) -->
         <Handle
@@ -161,7 +161,7 @@
             position={Position.Bottom}
             class="!w-3 !h-3 !border-2 !border-white/50 !rounded-full {colors.handleBg}"
         />
-    </div>
+    </button>
 {:else}
     <!-- Expanded state: full group container -->
     <div

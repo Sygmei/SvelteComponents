@@ -43,7 +43,7 @@
 
     // Theme detection
     let isDark = $state(true);
-    let isLayoutReady = $state(false);
+    let isInitialLayoutReady = $state(false);
     
     // Track collapsed groups
     let collapsedGroups = $state<Set<string>>(new Set());
@@ -82,7 +82,6 @@
         const processes = data.processes;
         const collapsed = collapsedGroups;
         const _version = layoutVersion; // Track for reactivity
-        isLayoutReady = false;
         
         // Run async ELK layout with collapsed groups
         processesToFlowAsync(processes, collapsed).then(({ nodes, edges }) => {
@@ -102,7 +101,7 @@
                 return { ...node, draggable: false };
             });
             flowEdges = edges;
-            isLayoutReady = true;
+            isInitialLayoutReady = true;
         }).catch(() => {
             // Fallback to sync layout if ELK fails
             flowNodes = initialNodes.map(node => {
@@ -120,7 +119,7 @@
                 return { ...node, draggable: false };
             });
             flowEdges = initialEdges;
-            isLayoutReady = true;
+            isInitialLayoutReady = true;
         });
     });
 
@@ -142,8 +141,8 @@
     class="process-graph-container relative h-full w-full overflow-hidden rounded-2xl border transition-colors duration-300 bg-gradient-to-br {isDark ? 'from-slate-900 via-slate-800 to-slate-900 border-white/10' : 'from-slate-100 via-white to-slate-100 border-slate-200'}"
     data-theme={isDark ? 'dark' : 'light'}
 >
-    <!-- Loading Indicator -->
-    {#if !isLayoutReady}
+    <!-- Loading Indicator (only show on initial load) -->
+    {#if !isInitialLayoutReady}
         <div class="absolute inset-0 z-20 flex items-center justify-center backdrop-blur-sm {isDark ? 'bg-slate-900/50' : 'bg-white/50'}">
             <div class="flex flex-col items-center gap-3">
                 <div class="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
