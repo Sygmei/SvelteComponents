@@ -23,8 +23,7 @@
     void targetPosition;
     void data;
 
-    const MARGIN = 20;
-    const TURN_CLEARANCE = 40; // Minimum distance from group boundary for turns
+    const TURN_CLEARANCE = 40; // Minimum distance from group boundary for turns and avoidance paths
 
     // Get the group hierarchy for a node (returns array from innermost to outermost)
     function getGroupHierarchy(nodeId: string): string[] {
@@ -203,10 +202,10 @@
         
         // Check if a smoothstep path (down, across, down) intersects any boxes
         function pathIntersectsBox(turnY: number, box: GroupBox): boolean {
-            const boxLeft = box.x - MARGIN;
-            const boxRight = box.x + box.width + MARGIN;
-            const boxTop = box.y - MARGIN;
-            const boxBottom = box.y + box.height + MARGIN;
+            const boxLeft = box.x - TURN_CLEARANCE;
+            const boxRight = box.x + box.width + TURN_CLEARANCE;
+            const boxTop = box.y - TURN_CLEARANCE;
+            const boxBottom = box.y + box.height + TURN_CLEARANCE;
             
             // Check vertical segment 1: sourceX, sourceY -> sourceX, turnY
             if (sourceX > boxLeft && sourceX < boxRight) {
@@ -272,15 +271,15 @@
         // Filter to only obstacles that are between source and target vertically
         // and could potentially block our path
         const relevantObstacles = allObstacles.filter(box => {
-            const boxTop = box.y - MARGIN;
-            const boxBottom = box.y + box.height + MARGIN;
+            const boxTop = box.y - TURN_CLEARANCE;
+            const boxBottom = box.y + box.height + TURN_CLEARANCE;
             
             // Box must be in the Y range we're traversing
             if (boxBottom < srcY || boxTop > tgtY) return false;
             
             // Box must overlap with either srcX or tgtX column, or be between them
-            const boxLeft = box.x - MARGIN;
-            const boxRight = box.x + box.width + MARGIN;
+            const boxLeft = box.x - TURN_CLEARANCE;
+            const boxRight = box.x + box.width + TURN_CLEARANCE;
             const minX = Math.min(srcX, tgtX);
             const maxX = Math.max(srcX, tgtX);
             
@@ -299,10 +298,10 @@
         relevantObstacles.sort((a, b) => a.y - b.y);
         
         for (const box of relevantObstacles) {
-            const boxLeft = box.x - MARGIN;
-            const boxRight = box.x + box.width + MARGIN;
-            const boxTop = box.y - MARGIN;
-            const boxBottom = box.y + box.height + MARGIN;
+            const boxLeft = box.x - TURN_CLEARANCE;
+            const boxRight = box.x + box.width + TURN_CLEARANCE;
+            const boxTop = box.y - TURN_CLEARANCE;
+            const boxBottom = box.y + box.height + TURN_CLEARANCE;
             const boxCenterX = box.x + box.width / 2;
             
             // Check if we actually need to go around this box
