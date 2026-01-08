@@ -115,23 +115,36 @@ async function layoutGroup(
     nodeWidths: Map<string, number>,
     groupSizes: Map<string, { width: number; height: number }>,
     edgesInGroup: Map<string, { sources: string[]; targets: string[] }[]>,
-    groupInternalLayouts: Map<string, Map<string, { x: number; y: number; width: number; height: number }>>
+    groupInternalLayouts: Map<string, Map<string, { x: number; y: number; width: number; height: number }>>,
+    collapsedGroups: Set<string> = new Set()
 ): Promise<{ width: number; height: number }> {
     const children: ElkNode[] = [];
     
     // Add direct child groups (using their pre-computed sizes)
+    // Skip children of collapsed groups
     group.childGroups.forEach(childGroupId => {
-        const size = groupSizes.get(childGroupId);
-        if (size) {
+        const childGroupNodeId = `group-${childGroupId}`;
+        // Skip if this child is inside a collapsed ancestor (but not itself collapsed at this level)
+        if (collapsedGroups.has(childGroupNodeId)) {
+            // This child is collapsed, include it with collapsed size
             children.push({
-                id: `group-${childGroupId}`,
-                width: size.width,
-                height: size.height
+                id: childGroupNodeId,
+                width: COLLAPSED_GROUP_WIDTH,
+                height: COLLAPSED_GROUP_HEIGHT
             });
+        } else {
+            const size = groupSizes.get(childGroupId);
+            if (size) {
+                children.push({
+                    id: childGroupNodeId,
+                    width: size.width,
+                    height: size.height
+                });
+            }
         }
     });
     
-    // Add direct processes
+    // Add direct processes (only if not inside a collapsed child group)
     group.processes.forEach(pName => {
         children.push({
             id: pName,
@@ -189,7 +202,8 @@ async function layoutRoot(
     groups: Map<string, GroupInfo>,
     nodeWidths: Map<string, number>,
     groupSizes: Map<string, { width: number; height: number }>,
-    edgesInGroup: Map<string, { sources: string[]; targets: string[] }[]>
+    edgesInGroup: Map<string, { sources: string[]; targets: string[] }[]>,
+    collapsedGroups: Set<string> = new Set()
 ): Promise<Map<string, { x: number; y: number; width: number; height: number }>> {
     const children: ElkNode[] = [];
     
@@ -207,13 +221,22 @@ async function layoutRoot(
     // Add root-level groups
     const rootGroups = Array.from(groups.values()).filter(g => !g.parentId);
     rootGroups.forEach(group => {
-        const size = groupSizes.get(group.id);
-        if (size) {
+        const groupNodeId = `group-${group.id}`;
+        if (collapsedGroups.has(groupNodeId)) {
             children.push({
-                id: `group-${group.id}`,
-                width: size.width,
-                height: size.height
+                id: groupNodeId,
+                width: COLLAPSED_GROUP_WIDTH,
+                height: COLLAPSED_GROUP_HEIGHT
             });
+        } else {
+            const size = groupSizes.get(group.id);
+            if (size) {
+                children.push({
+                    id: groupNodeId,
+                    width: size.width,
+                    height: size.height
+                });
+            }
         }
     });
     
@@ -354,17 +377,203 @@ function buildSvelteFlowFromLayouts(
 }
 
 /**
+ * Build Svelte Flow nodes and edges from the hierarchical layouts (with collapse support)
+ */
+function buildSvelteFlowFromLayoutsWithCollapse(
+    processes: Process[],
+    processMap: Map<string, Process>,
+    groups: Map<string, GroupInfo>,
+    rootLayout: Map<string, { x: number; y: number; width: number; height: number }>,
+    groupInternalLayouts: Map<string, Map<string, { x: number; y: number; width: number; height: number }>>,
+    groupSizes: Map<string, { width: number; height: number }>,
+    collapsedGroups: Set<string>
+): { nodes: Node[]; edges: Edge[] } {
+    const nodes: Node[] = [];
+    const edges: Edge[] = [];
+    
+    // Sort groups by depth (shallowest first for proper parent-child relationship)
+    const sortedGroups = Array.from(groups.values()).sort((a, b) => a.path.length - b.path.length);
+    
+    // Track which groups to show (not inside a collapsed parent)
+    const visibleGroups = new Set<string>();
+    
+    // Create group nodes
+    sortedGroups.forEach(group => {
+        const groupNodeId = `group-${group.id}`;
+        
+        // Check if this group is inside a collapsed ancestor
+        const isInsideCollapsed = group.parentId && isGroupInsideCollapsed(group.parentId, collapsedGroups);
+        if (isInsideCollapsed) {
+            return; // Skip - this group is hidden inside a collapsed parent
+        }
+        
+        visibleGroups.add(group.id);
+        
+        const isCollapsed = collapsedGroups.has(groupNodeId);
+        const size = isCollapsed 
+            ? { width: COLLAPSED_GROUP_WIDTH, height: COLLAPSED_GROUP_HEIGHT }
+            : groupSizes.get(group.id);
+        
+        if (!size) return;
+        
+        let position: { x: number; y: number };
+        
+        if (!group.parentId) {
+            // Root-level group
+            const layout = rootLayout.get(groupNodeId);
+            position = { x: layout?.x || 0, y: layout?.y || 0 };
+        } else {
+            // Nested group - get position from parent's internal layout
+            const parentLayout = groupInternalLayouts.get(group.parentId);
+            const myLayout = parentLayout?.get(groupNodeId);
+            position = { x: myLayout?.x || 0, y: myLayout?.y || 0 };
+        }
+        
+        nodes.push({
+            id: groupNodeId,
+            type: 'group',
+            position,
+            data: {
+                label: group.path[group.path.length - 1],
+                fullPath: group.path.join('.'),
+                collapsed: isCollapsed
+            },
+            style: `width: ${size.width}px; height: ${size.height}px;`,
+            ...(group.parentId && { parentId: `group-${group.parentId}` })
+        });
+    });
+    
+    // Create process nodes (only if not inside collapsed group)
+    processes.forEach(process => {
+        const groupPath = extractGroup(process.name);
+        
+        // Check if this process is inside a collapsed group
+        const collapsedParent = isInsideCollapsedGroup(process.name, collapsedGroups, groups);
+        if (collapsedParent) {
+            return; // Skip - this process is hidden inside a collapsed group
+        }
+        
+        const parentGroupId = groupPath !== 'root' ? `group-${groupPath}` : undefined;
+        
+        let position: { x: number; y: number };
+        
+        if (groupPath === 'root') {
+            // Root-level process
+            const layout = rootLayout.get(process.name);
+            position = { x: layout?.x || 0, y: layout?.y || 0 };
+        } else {
+            // Process in a group - get position from group's internal layout
+            const groupLayout = groupInternalLayouts.get(groupPath);
+            const myLayout = groupLayout?.get(process.name);
+            position = { x: myLayout?.x || 0, y: myLayout?.y || 0 };
+        }
+        
+        nodes.push({
+            id: process.name,
+            type: 'process',
+            position,
+            data: {
+                label: process.name,
+                status: process.status,
+                errorMessage: process.last_run_error_message,
+                group: groupPath
+            } satisfies ProcessNodeData,
+            ...(parentGroupId && { parentId: parentGroupId })
+        });
+    });
+    
+    // Create edges (redirecting to collapsed groups when needed)
+    const addedEdges = new Set<string>(); // Avoid duplicate edges
+    
+    processes.forEach(process => {
+        process.upstream_processes.forEach(upstream => {
+            // Get effective source and target (may be redirected to collapsed group)
+            const effectiveSource = getEffectiveNodeId(upstream, collapsedGroups, groups);
+            const effectiveTarget = getEffectiveNodeId(process.name, collapsedGroups, groups);
+            
+            // Skip self-loops (when both ends collapse to same group)
+            if (effectiveSource === effectiveTarget) return;
+            
+            const edgeId = `${effectiveSource}->${effectiveTarget}`;
+            if (addedEdges.has(edgeId)) return; // Skip duplicates
+            addedEdges.add(edgeId);
+            
+            const sourceStatus = processMap.get(upstream)?.status || 'NOTSTARTED';
+            const targetStatus = process.status;
+            
+            edges.push({
+                id: edgeId,
+                source: effectiveSource,
+                target: effectiveTarget,
+                type: 'smoothstep',
+                animated: targetStatus === 'INPROGRESS',
+                style: getEdgeStyle(sourceStatus, targetStatus)
+            });
+        });
+    });
+    
+    return { nodes, edges };
+}
+
+/**
+ * Check if a group ID is inside a collapsed ancestor
+ */
+function isGroupInsideCollapsed(groupId: string, collapsedGroups: Set<string>): boolean {
+    const parts = groupId.split('.');
+    for (let i = 1; i <= parts.length; i++) {
+        const ancestorGroup = parts.slice(0, i).join('.');
+        if (collapsedGroups.has(`group-${ancestorGroup}`)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * Standard node width
  */
 function calculateNodeWidth(_processName: string): number {
     return NODE_WIDTH;
 }
 
+// Collapsed group dimensions
+const COLLAPSED_GROUP_WIDTH = 200;
+const COLLAPSED_GROUP_HEIGHT = 60;
+
+/**
+ * Check if a process or group is inside a collapsed group
+ */
+function isInsideCollapsedGroup(nodeId: string, collapsedGroups: Set<string>, groups: Map<string, GroupInfo>): string | null {
+    const nodeGroup = extractGroup(nodeId);
+    if (nodeGroup === 'root') return null;
+    
+    // Check if this node's group or any ancestor is collapsed
+    const parts = nodeGroup.split('.');
+    for (let i = 1; i <= parts.length; i++) {
+        const ancestorGroup = parts.slice(0, i).join('.');
+        if (collapsedGroups.has(`group-${ancestorGroup}`)) {
+            return `group-${ancestorGroup}`;
+        }
+    }
+    return null;
+}
+
+/**
+ * Get the effective node ID for edge routing (redirects to collapsed group if needed)
+ */
+function getEffectiveNodeId(nodeId: string, collapsedGroups: Set<string>, groups: Map<string, GroupInfo>): string {
+    const collapsedParent = isInsideCollapsedGroup(nodeId, collapsedGroups, groups);
+    return collapsedParent || nodeId;
+}
+
 /**
  * Converts process data to Svelte Flow nodes and edges with hierarchical ELK layout
  * Layout is applied bottom-up: deepest groups first, then parent groups treat children as single nodes
  */
-export async function processesToFlowAsync(processes: Process[]): Promise<{ nodes: Node[]; edges: Edge[] }> {
+export async function processesToFlowAsync(
+    processes: Process[], 
+    collapsedGroups: Set<string> = new Set()
+): Promise<{ nodes: Node[]; edges: Edge[] }> {
     const processMap = new Map<string, Process>();
     processes.forEach(p => processMap.set(p.name, p));
 
@@ -380,7 +589,7 @@ export async function processesToFlowAsync(processes: Process[]): Promise<{ node
     // Build edges map for quick lookup
     const edgesInGroup = new Map<string, { sources: string[]; targets: string[] }[]>();
     
-    // Collect edges that are internal to each group
+    // Collect edges that are internal to each group (considering collapsed state)
     processes.forEach(process => {
         const targetGroup = extractGroup(process.name);
         process.upstream_processes.forEach(upstream => {
@@ -406,17 +615,32 @@ export async function processesToFlowAsync(processes: Process[]): Promise<{ node
     // Store internal layouts for each group
     const groupInternalLayouts = new Map<string, Map<string, { x: number; y: number; width: number; height: number }>>();
 
-    // Layout each group bottom-up
+    // Layout each group bottom-up (skip collapsed groups - they have fixed size)
     for (const group of sortedGroups) {
-        const layout = await layoutGroup(group, groups, nodeWidths, groupSizes, edgesInGroup, groupInternalLayouts);
+        const groupNodeId = `group-${group.id}`;
+        
+        // Check if this group or any ancestor is collapsed
+        if (collapsedGroups.has(groupNodeId)) {
+            // Use fixed collapsed size
+            groupSizes.set(group.id, { width: COLLAPSED_GROUP_WIDTH, height: COLLAPSED_GROUP_HEIGHT });
+            continue;
+        }
+        
+        // Check if parent is collapsed (skip layout for children of collapsed groups)
+        const parentCollapsed = group.parentId && collapsedGroups.has(`group-${group.parentId}`);
+        if (parentCollapsed) {
+            continue;
+        }
+        
+        const layout = await layoutGroup(group, groups, nodeWidths, groupSizes, edgesInGroup, groupInternalLayouts, collapsedGroups);
         groupSizes.set(group.id, { width: layout.width, height: layout.height });
     }
 
     // Now layout the root level
-    const rootLayout = await layoutRoot(processes, groups, nodeWidths, groupSizes, edgesInGroup);
+    const rootLayout = await layoutRoot(processes, groups, nodeWidths, groupSizes, edgesInGroup, collapsedGroups);
     
     // Convert to Svelte Flow format
-    return buildSvelteFlowFromLayouts(processes, processMap, groups, rootLayout, groupInternalLayouts, groupSizes);
+    return buildSvelteFlowFromLayoutsWithCollapse(processes, processMap, groups, rootLayout, groupInternalLayouts, groupSizes, collapsedGroups);
 }
 
 /**

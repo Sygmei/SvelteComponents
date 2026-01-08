@@ -45,6 +45,12 @@
     let isDark = $state(true);
     let isLayoutReady = $state(false);
     
+    // Track collapsed groups
+    let collapsedGroups = $state<Set<string>>(new Set());
+    
+    // Layout version to force re-layout when collapse state changes
+    let layoutVersion = $state(0);
+    
     onMount(() => {
         isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -55,23 +61,64 @@
         return () => mediaQuery.removeEventListener('change', handler);
     });
 
+    // Handle group collapse toggle
+    function handleToggleCollapse(groupId: string) {
+        const newCollapsed = new Set(collapsedGroups);
+        if (newCollapsed.has(groupId)) {
+            newCollapsed.delete(groupId);
+        } else {
+            newCollapsed.add(groupId);
+        }
+        collapsedGroups = newCollapsed;
+        layoutVersion++;
+    }
+
     // For reactivity with SvelteFlow
     let flowNodes = $state<Node[]>([]);
     let flowEdges = $state<Edge[]>([]);
 
-    // Run ELK layout when data changes
+    // Run ELK layout when data or collapse state changes
     $effect(() => {
         const processes = data.processes;
+        const collapsed = collapsedGroups;
+        const _version = layoutVersion; // Track for reactivity
         isLayoutReady = false;
         
-        // Run async ELK layout
-        processesToFlowAsync(processes).then(({ nodes, edges }) => {
-            flowNodes = nodes.map(node => ({ ...node, draggable: false }));
+        // Run async ELK layout with collapsed groups
+        processesToFlowAsync(processes, collapsed).then(({ nodes, edges }) => {
+            // Add collapse callback to group nodes
+            flowNodes = nodes.map(node => {
+                if (node.type === 'group') {
+                    return {
+                        ...node,
+                        draggable: false,
+                        data: {
+                            ...node.data,
+                            collapsed: collapsed.has(node.id),
+                            onToggleCollapse: handleToggleCollapse
+                        }
+                    };
+                }
+                return { ...node, draggable: false };
+            });
             flowEdges = edges;
             isLayoutReady = true;
         }).catch(() => {
             // Fallback to sync layout if ELK fails
-            flowNodes = initialNodes.map(node => ({ ...node, draggable: false }));
+            flowNodes = initialNodes.map(node => {
+                if (node.type === 'group') {
+                    return {
+                        ...node,
+                        draggable: false,
+                        data: {
+                            ...node.data,
+                            collapsed: collapsed.has(node.id),
+                            onToggleCollapse: handleToggleCollapse
+                        }
+                    };
+                }
+                return { ...node, draggable: false };
+            });
             flowEdges = initialEdges;
             isLayoutReady = true;
         });
