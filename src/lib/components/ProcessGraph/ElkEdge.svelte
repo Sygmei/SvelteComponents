@@ -396,9 +396,22 @@
 
             // Go around the box using the calculated side
             waypoints.push({ x: finalX, y: currentY });
-            waypoints.push({ x: finalX, y: boxBottom });
-            currentX = finalX;
-            currentY = boxBottom;
+            
+            // KEY FIX: Don't go all the way to boxBottom if target is above boxBottom
+            // This prevents the edge from going below the target and then back up
+            // Check if the target X is now reachable without going through any more obstacles
+            
+            if (tgtY < boxBottom && tgtX >= finalX - TURN_CLEARANCE) {
+                // Target is above boxBottom and to the right of our current position
+                // We can go directly to target Y level without going to boxBottom
+                currentX = finalX;
+                // Don't update currentY to boxBottom - keep it at splitY
+            } else {
+                // Need to go all the way around
+                waypoints.push({ x: finalX, y: boxBottom });
+                currentX = finalX;
+                currentY = boxBottom;
+            }
         }
 
         // Connect to target with orthogonal segments

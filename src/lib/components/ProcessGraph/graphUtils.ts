@@ -752,6 +752,211 @@ function calculateAvoidanceExpansions(
 }
 
 /**
+ * Post-process ELK layout to center children within their parent groups.
+ * This centers the content horizontally within each group's available space.
+ * 
+ * For proper visual alignment, we also need to align nodes with their
+ * upstream/downstream connections where possible.
+ */
+function centerChildrenInGroups(elkGraph: ElkNode): void {
+    // First pass: Calculate absolute positions for all nodes
+    const absolutePositions = new Map<string, { x: number; y: number; width: number; height: number; parentId?: string }>();
+
+    function calculatePositions(node: ElkNode, offsetX: number = 0, offsetY: number = 0, parentId?: string): void {
+        if (!node.children) return;
+
+        node.children.forEach(child => {
+            const absX = offsetX + (child.x || 0);
+            const absY = offsetY + (child.y || 0);
+            absolutePositions.set(child.id, {
+                x: absX,
+                y: absY,
+                width: child.width || 0,
+                height: child.height || 0,
+                parentId
+            });
+
+            if (child.id.startsWith('group-') && child.children) {
+                calculatePositions(child, absX, absY, child.id);
+            }
+        });
+    }
+
+    calculatePositions(elkGraph);
+
+    // Build edge map: target -> sources
+    const incomingEdges = new Map<string, string[]>();
+
+    function collectEdges(node: ElkNode): void {
+        if (node.edges) {
+            node.edges.forEach(edge => {
+                const target = edge.targets[0];
+                const source = edge.sources[0];
+                if (!incomingEdges.has(target)) {
+                    incomingEdges.set(target, []);
+                }
+                incomingEdges.get(target)!.push(source);
+            });
+        }
+        if (node.children) {
+            node.children.forEach(child => {
+                if (child.id.startsWith('group-')) {
+                    collectEdges(child);
+                }
+            });
+        }
+    }
+
+    collectEdges(elkGraph);
+
+    // Second pass: Center children and align with upstream where possible
+    function processNode(node: ElkNode): void {
+        if (!node.children || node.children.length === 0) {
+            return;
+        }
+
+        // First, recursively process all child groups (bottom-up)
+        node.children.forEach(child => {
+            if (child.id.startsWith('group-') && child.children && child.children.length > 0) {
+                processNode(child);
+            }
+        });
+
+        // Group children by their Y position (layer)
+        // Items with overlapping Y ranges should be in the same layer
+        const layerMap = new Map<number, ElkNode[]>();
+
+        // First, sort children by Y position
+        const sortedChildren = [...node.children].sort((a, b) => (a.y || 0) - (b.y || 0));
+
+        // Group items that overlap vertically into the same layer
+        let currentLayerY = -Infinity;
+        let currentLayerMaxY = -Infinity;
+
+        sortedChildren.forEach(child => {
+            const childY = child.y || 0;
+            const childHeight = child.height || 0;
+            const childBottomY = childY + childHeight;
+
+            // If this child's top is within the current layer's range, add to current layer
+            // Allow some tolerance for items that are "close enough" to be in the same visual row
+            const LAYER_TOLERANCE = 50; // Items within 50px of each other are considered same layer
+
+            if (childY <= currentLayerMaxY + LAYER_TOLERANCE) {
+                // Extend current layer
+                currentLayerMaxY = Math.max(currentLayerMaxY, childBottomY);
+            } else {
+                // Start a new layer
+                currentLayerY = childY;
+                currentLayerMaxY = childBottomY;
+            }
+
+            // Use the layer's starting Y as the key
+            const roundedLayerY = Math.round(currentLayerY / 10) * 10;
+            if (!layerMap.has(roundedLayerY)) {
+                layerMap.set(roundedLayerY, []);
+            }
+            layerMap.get(roundedLayerY)!.push(child);
+        });
+
+        console.log(`[Centering ${node.id}] Layers:`, Array.from(layerMap.entries()).map(([y, nodes]) =>
+            `y=${y}: [${nodes.map(n => `${n.id}(x=${n.x},w=${n.width})`).join(', ')}]`
+        ));
+
+        // For each layer, try to center it based on connections or parent center
+        const nodeWidth = node.width || 0;
+        const nodeCenterX = nodeWidth / 2;
+
+        const sortedLayers = Array.from(layerMap.keys()).sort((a, b) => a - b);
+
+        sortedLayers.forEach((layerY, layerIndex) => {
+            const layerNodes = layerMap.get(layerY)!;
+
+            // Sort nodes by X position to maintain order
+            layerNodes.sort((a, b) => (a.x || 0) - (b.x || 0));
+
+            // Calculate layer bounding box
+            let layerMinX = Infinity;
+            let layerMaxX = -Infinity;
+            layerNodes.forEach(child => {
+                layerMinX = Math.min(layerMinX, child.x || 0);
+                layerMaxX = Math.max(layerMaxX, (child.x || 0) + (child.width || 0));
+            });
+
+            const layerWidth = layerMaxX - layerMinX;
+            const layerCenterX = layerMinX + layerWidth / 2;
+
+            console.log(`  Layer ${layerIndex} (y=${layerY}): nodes=${layerNodes.map(n => n.id).join(',')}, minX=${layerMinX}, maxX=${layerMaxX}, layerWidth=${layerWidth}, layerCenterX=${layerCenterX}`);
+
+            // Determine target center for this layer
+            let targetCenterX = nodeCenterX;
+
+            // For layers in root, try to align with upstream nodes
+            // For layers inside groups, just center within the parent (the parent group itself will align to upstream)
+            if (node.id === 'root' && layerIndex > 0) {
+                // Check if nodes in this layer have incoming edges from previous layers
+                let sumUpstreamCenterX = 0;
+                let upstreamCount = 0;
+
+                layerNodes.forEach(layerNode => {
+                    const nodeIncoming = incomingEdges.get(layerNode.id) || [];
+                    nodeIncoming.forEach(srcId => {
+                        const srcPos = absolutePositions.get(srcId);
+                        if (srcPos) {
+                            sumUpstreamCenterX += srcPos.x + srcPos.width / 2;
+                            upstreamCount++;
+                        }
+                    });
+                });
+
+                if (upstreamCount > 0) {
+                    targetCenterX = sumUpstreamCenterX / upstreamCount;
+                }
+            }
+
+            // Clamp target center to keep layer within padding bounds
+            const leftPadding = GLOBAL_MARGIN;
+            const rightPadding = GLOBAL_MARGIN;
+            const minLayerCenter = leftPadding + layerWidth / 2;
+            const maxLayerCenter = nodeWidth - rightPadding - layerWidth / 2;
+            targetCenterX = Math.max(minLayerCenter, Math.min(maxLayerCenter, targetCenterX));
+
+            // Calculate shift
+            const shiftX = targetCenterX - layerCenterX;
+
+            if (Math.abs(shiftX) > 1) {
+                layerNodes.forEach(child => {
+                    child.x = (child.x || 0) + shiftX;
+
+                    // Update absolute position for this child and all its descendants
+                    updateAbsolutePositions(child.id, shiftX);
+                });
+            }
+        });
+
+        // Helper function to recursively update absolute positions after a shift
+        function updateAbsolutePositions(nodeId: string, shiftX: number): void {
+            const absPos = absolutePositions.get(nodeId);
+            if (absPos) {
+                absPos.x += shiftX;
+
+                // If this is a group, also update all descendants
+                if (nodeId.startsWith('group-')) {
+                    absolutePositions.forEach((pos, id) => {
+                        if (pos.parentId === nodeId) {
+                            updateAbsolutePositions(id, shiftX);
+                        }
+                    });
+                }
+            }
+        }
+    }
+
+    // Start processing from the root
+    processNode(elkGraph);
+}
+
+/**
  * Build a unified hierarchical ELK graph with all nodes and edges
  * This allows ELK to properly route edges around group boundaries
  * 
@@ -1355,6 +1560,9 @@ export async function processesToFlowAsync(
         elkGraph = buildUnifiedElkGraphWithExpansions(processes, groups, nodeWidths, collapsedGroups, expansions);
         layoutedGraph = await elk.layout(elkGraph);
     }
+
+    // Post-process: Center children within each group
+    centerChildrenInGroups(layoutedGraph);
 
     // Convert to Svelte Flow format
     return unifiedElkToSvelteFlow(layoutedGraph, processes, processMap, groups, collapsedGroups);
