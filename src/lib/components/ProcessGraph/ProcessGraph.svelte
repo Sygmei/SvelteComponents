@@ -419,6 +419,7 @@
         minZoom={0.1}
         maxZoom={2}
         nodesDraggable={false}
+        nodesConnectable={false}
         defaultEdgeOptions={{
             type: "elk",
             style: "stroke-width: 2px;",
