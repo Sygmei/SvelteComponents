@@ -1,16 +1,9 @@
 <script lang="ts">
     import { onMount } from "svelte";
-
-    interface RadialMenuItem {
-        id: string;
-        label: string;
-        icon: string;
-        color: string;
-        hoverColor: string;
-    }
+    import type { RadialMenuAction } from "./types";
 
     interface Props {
-        items: RadialMenuItem[];
+        items: RadialMenuAction[];
         show: boolean;
         onAction: (actionId: string) => void;
         onClose: () => void;

@@ -18,3 +18,12 @@ export interface ProcessNodeData {
     errorMessage: string | null;
     group: string;
 }
+
+export interface RadialMenuAction {
+    id: string;
+    label: string;
+    icon: string;
+    color: string;
+    hoverColor: string;
+    onAction?: (nodeId: string, nodeData: ProcessNodeData) => void;
+}

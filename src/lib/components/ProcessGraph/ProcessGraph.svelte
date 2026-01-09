@@ -18,8 +18,40 @@
         processesToFlowAsync,
         getProcessStats,
     } from "./graphUtils";
-    import type { ProcessGraphData } from "./types";
+    import type { ProcessGraphData, RadialMenuAction } from "./types";
     import { onMount } from "svelte";
+
+    // Default radial menu actions
+    const defaultRadialActions: RadialMenuAction[] = [
+        { 
+            id: 'retry', 
+            label: 'Retry', 
+            icon: '↻',
+            color: '#3b82f6',
+            hoverColor: '#2563eb',
+        },
+        { 
+            id: 'set-failed', 
+            label: 'Failed', 
+            icon: '✗',
+            color: '#ef4444',
+            hoverColor: '#dc2626',
+        },
+        { 
+            id: 'set-success', 
+            label: 'Success', 
+            icon: '✓',
+            color: '#10b981',
+            hoverColor: '#059669',
+        },
+        { 
+            id: 'logs', 
+            label: 'Logs', 
+            icon: '📋',
+            color: '#8b5cf6',
+            hoverColor: '#7c3aed',
+        },
+    ];
 
     interface Props {
         data: ProcessGraphData;
@@ -27,6 +59,7 @@
         showControls?: boolean;
         showStats?: boolean;
         fitViewOnLoad?: boolean;
+        radialActions?: RadialMenuAction[];
     }
 
     let {
@@ -35,6 +68,7 @@
         showControls = true,
         showStats = true,
         fitViewOnLoad = true,
+        radialActions = defaultRadialActions,
     }: Props = $props();
 
     const nodeTypes = {
@@ -146,7 +180,7 @@
         // Run async ELK layout with collapsed groups
         processesToFlowAsync(processes, collapsed)
             .then(({ nodes, edges }) => {
-                // Add collapse callback to group nodes
+                // Add callbacks and data to nodes
                 flowNodes = nodes.map((node) => {
                     if (node.type === "group") {
                         return {
@@ -159,7 +193,15 @@
                             },
                         };
                     }
-                    return { ...node, draggable: false };
+                    // Process nodes get radial menu config
+                    return { 
+                        ...node, 
+                        draggable: false,
+                        data: {
+                            ...node.data,
+                            radialActions,
+                        },
+                    };
                 });
                 flowEdges = edges;
                 isInitialLayoutReady = true;
@@ -178,7 +220,15 @@
                             },
                         };
                     }
-                    return { ...node, draggable: false };
+                    // Process nodes get radial menu config
+                    return { 
+                        ...node, 
+                        draggable: false,
+                        data: {
+                            ...node.data,
+                            radialActions,
+                        },
+                    };
                 });
                 flowEdges = initialEdges;
                 isInitialLayoutReady = true;

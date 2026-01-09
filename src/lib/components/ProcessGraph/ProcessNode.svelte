@@ -6,14 +6,18 @@
         useEdges,
         useNodes,
     } from "@xyflow/svelte";
-    import type { ProcessNodeData } from "./types";
+    import type { ProcessNodeData, RadialMenuAction } from "./types";
     import { onMount } from "svelte";
     import { hoveredNodeStore, focusedNodeStore } from "./graphUtils";
     import { get } from "svelte/store";
     import RadialMenu from "./RadialMenu.svelte";
 
+    interface ExtendedProcessNodeData extends ProcessNodeData {
+        radialActions?: RadialMenuAction[];
+    }
+
     interface Props {
-        data: ProcessNodeData;
+        data: ExtendedProcessNodeData;
         id?: string;
         selected?: boolean;
     }
@@ -52,41 +56,49 @@
         hoveredNodeStore.set(null);
     }
 
-    // Radial menu configuration
-    const radialMenuItems = [
+    // Default radial menu items (fallback if not provided via props)
+    const defaultRadialMenuItems: RadialMenuAction[] = [
         { 
             id: 'retry', 
             label: 'Retry', 
             icon: '↻',
-            color: '#3b82f6', // blue-500
-            hoverColor: '#2563eb', // blue-600
+            color: '#3b82f6',
+            hoverColor: '#2563eb',
         },
         { 
             id: 'set-failed', 
             label: 'Failed', 
             icon: '✗',
-            color: '#ef4444', // red-500
-            hoverColor: '#dc2626', // red-600
+            color: '#ef4444',
+            hoverColor: '#dc2626',
         },
         { 
             id: 'set-success', 
             label: 'Success', 
             icon: '✓',
-            color: '#10b981', // emerald-500
-            hoverColor: '#059669', // emerald-600
+            color: '#10b981',
+            hoverColor: '#059669',
         },
         { 
             id: 'logs', 
             label: 'Logs', 
             icon: '📋',
-            color: '#8b5cf6', // violet-500
-            hoverColor: '#7c3aed', // violet-600
+            color: '#8b5cf6',
+            hoverColor: '#7c3aed',
         },
     ];
 
+    // Use provided radial actions or fall back to defaults
+    const radialMenuItems = $derived(data.radialActions ?? defaultRadialMenuItems);
+
     function handleRadialAction(actionId: string) {
-        console.log(`[ProcessNode] Radial action: ${actionId} for node: ${id}`);
-        // TODO: Dispatch events for each action
+        // Find the action and call its callback if provided
+        const action = radialMenuItems.find(a => a.id === actionId);
+        if (action?.onAction) {
+            action.onAction(id, data);
+        } else {
+            console.log(`[ProcessNode] Radial action: ${actionId} for node: ${id}`);
+        }
         showRadialMenu = false;
     }
 

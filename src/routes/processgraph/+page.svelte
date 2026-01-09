@@ -1,6 +1,6 @@
 <script lang="ts">
     import { ProcessGraph } from "$lib/components/ProcessGraph";
-    import type { ProcessGraphData } from "$lib/components/ProcessGraph";
+    import type { ProcessGraphData, RadialMenuAction } from "$lib/components/ProcessGraph";
     import { onMount } from "svelte";
 
     // Import the dataset
@@ -11,6 +11,54 @@
     let showMiniMap = $state(true);
     let showControls = $state(true);
     let showStats = $state(true);
+
+    // Custom radial menu actions with individual callbacks
+    const radialActions: RadialMenuAction[] = [
+        {
+            id: "retry",
+            label: "Retry",
+            icon: "↻",
+            color: "#3b82f6",
+            hoverColor: "#60a5fa",
+            onAction: (nodeId, nodeData) => {
+                console.log(`Retrying node "${nodeId}"`, nodeData);
+                // Add retry logic here
+            },
+        },
+        {
+            id: "fail",
+            label: "Set Failed",
+            icon: "✕",
+            color: "#ef4444",
+            hoverColor: "#f87171",
+            onAction: (nodeId, nodeData) => {
+                console.log(`Marking node "${nodeId}" as failed`, nodeData);
+                // Add fail logic here
+            },
+        },
+        {
+            id: "success",
+            label: "Set Success",
+            icon: "✓",
+            color: "#22c55e",
+            hoverColor: "#4ade80",
+            onAction: (nodeId, nodeData) => {
+                console.log(`Marking node "${nodeId}" as success`, nodeData);
+                // Add success logic here
+            },
+        },
+        {
+            id: "logs",
+            label: "View Logs",
+            icon: "📋",
+            color: "#8b5cf6",
+            hoverColor: "#a78bfa",
+            onAction: (nodeId, nodeData) => {
+                console.log(`Viewing logs for node "${nodeId}"`, nodeData);
+                // Add logs modal logic here
+            },
+        },
+    ];
 
     // Theme detection
     let isDark = $state(true);
@@ -102,6 +150,7 @@
                 {showMiniMap}
                 {showControls}
                 {showStats}
+                {radialActions}
             />
         </div>
 
