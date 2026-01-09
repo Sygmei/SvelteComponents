@@ -49,6 +49,9 @@ export const hoveredNodeStore = writable<string | null>(null);
 // Store for currently focused (zoomed) node - used to toggle zoom behavior
 export const focusedNodeStore = writable<string | null>(null);
 
+// Store for highlighted status - used to highlight all nodes with a specific status
+export const highlightedStatusStore = writable<string | null>(null);
+
 /**
  * Find the common ancestor group of two groups (or 'root' if none)
  */

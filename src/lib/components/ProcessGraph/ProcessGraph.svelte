@@ -18,6 +18,7 @@
         processesToFlow,
         processesToFlowAsync,
         getProcessStats,
+        highlightedStatusStore,
     } from "./graphUtils";
     import type { ProcessGraphData, RadialMenuAction } from "./types";
     import { onMount } from "svelte";
@@ -301,7 +302,11 @@
                             ? 'bg-white/20'
                             : 'bg-slate-300'}"
                     ></div>
-                    <div class="flex items-center gap-1.5">
+                    <div 
+                        class="flex items-center gap-1.5 cursor-pointer rounded px-1 -mx-1 transition-colors hover:bg-emerald-500/20"
+                        onmouseenter={() => highlightedStatusStore.set('SUCCESS')}
+                        onmouseleave={() => highlightedStatusStore.set(null)}
+                    >
                         <span class="h-2.5 w-2.5 rounded-full bg-emerald-500"
                         ></span>
                         <span class="text-emerald-500 font-medium w-6"
@@ -312,7 +317,11 @@
                             >Success</span
                         >
                     </div>
-                    <div class="flex items-center gap-1.5">
+                    <div 
+                        class="flex items-center gap-1.5 cursor-pointer rounded px-1 -mx-1 transition-colors hover:bg-slate-500/20"
+                        onmouseenter={() => highlightedStatusStore.set('SKIPPED')}
+                        onmouseleave={() => highlightedStatusStore.set(null)}
+                    >
                         <span class="h-2.5 w-2.5 rounded-full bg-slate-500"
                         ></span>
                         <span class="text-slate-500 font-medium w-6"
@@ -333,7 +342,11 @@
                             {hideSkipped ? "Show" : "Hide"}
                         </button>
                     </div>
-                    <div class="flex items-center gap-1.5">
+                    <div 
+                        class="flex items-center gap-1.5 cursor-pointer rounded px-1 -mx-1 transition-colors hover:bg-red-500/20"
+                        onmouseenter={() => highlightedStatusStore.set('FAILED')}
+                        onmouseleave={() => highlightedStatusStore.set(null)}
+                    >
                         <span class="h-2.5 w-2.5 rounded-full bg-red-500"
                         ></span>
                         <span class="text-red-500 font-medium w-6"
@@ -344,7 +357,11 @@
                             >Failed</span
                         >
                     </div>
-                    <div class="flex items-center gap-1.5">
+                    <div 
+                        class="flex items-center gap-1.5 cursor-pointer rounded px-1 -mx-1 transition-colors hover:bg-blue-500/20"
+                        onmouseenter={() => highlightedStatusStore.set('INPROGRESS')}
+                        onmouseleave={() => highlightedStatusStore.set(null)}
+                    >
                         <span
                             class="h-2.5 w-2.5 rounded-full bg-blue-500 animate-pulse"
                         ></span>
@@ -356,7 +373,11 @@
                             >In Progress</span
                         >
                     </div>
-                    <div class="flex items-center gap-1.5">
+                    <div 
+                        class="flex items-center gap-1.5 cursor-pointer rounded px-1 -mx-1 transition-colors hover:bg-amber-500/20"
+                        onmouseenter={() => highlightedStatusStore.set('NOTSTARTED')}
+                        onmouseleave={() => highlightedStatusStore.set(null)}
+                    >
                         <span class="h-2.5 w-2.5 rounded-full bg-amber-500"
                         ></span>
                         <span class="text-amber-500 font-medium w-6"
@@ -367,7 +388,11 @@
                             >Not Started</span
                         >
                     </div>
-                    <div class="flex items-center gap-1.5">
+                    <div 
+                        class="flex items-center gap-1.5 cursor-pointer rounded px-1 -mx-1 transition-colors hover:bg-violet-500/20"
+                        onmouseenter={() => highlightedStatusStore.set('ROLLBACKED')}
+                        onmouseleave={() => highlightedStatusStore.set(null)}
+                    >
                         <span class="h-2.5 w-2.5 rounded-full bg-violet-500"
                         ></span>
                         <span class="text-violet-500 font-medium w-6"

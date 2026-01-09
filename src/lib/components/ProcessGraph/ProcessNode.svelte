@@ -8,7 +8,7 @@
     } from "@xyflow/svelte";
     import type { ProcessNodeData, RadialMenuAction } from "./types";
     import { onMount } from "svelte";
-    import { hoveredNodeStore, focusedNodeStore } from "./graphUtils";
+    import { hoveredNodeStore, focusedNodeStore, highlightedStatusStore } from "./graphUtils";
     import { get } from "svelte/store";
     import RadialMenu from "./RadialMenu.svelte";
 
@@ -42,6 +42,22 @@
     
     // Radial menu state
     let showRadialMenu = $state(false);
+
+    // Status highlighting from stats panel hover
+    let highlightedStatus = $state<string | null>(null);
+    highlightedStatusStore.subscribe((value) => {
+        highlightedStatus = value;
+    });
+    
+    // Check if this node should be highlighted based on status hover
+    const isStatusHighlighted = $derived(
+        highlightedStatus !== null && data.status === highlightedStatus
+    );
+    
+    // Check if this node should be dimmed (another status is highlighted but not ours)
+    const isStatusDimmed = $derived(
+        highlightedStatus !== null && data.status !== highlightedStatus
+    );
 
     onMount(() => {
         isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -368,6 +384,17 @@
     };
 
     const folderColor = $derived(getFolderColor(groupPath()));
+    
+    // Dynamic classes for status highlighting
+    const highlightClasses = $derived(() => {
+        if (isStatusHighlighted) {
+            return 'scale-110 ring-4 ring-white/50 z-10';
+        }
+        if (isStatusDimmed) {
+            return 'opacity-30';
+        }
+        return '';
+    });
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -375,8 +402,8 @@
 <div
     class="process-node group relative w-[180px] rounded-xl border-2 backdrop-blur-sm transition-all duration-300 {config.bgColor} {config.borderColor} {selected
         ? 'shadow-lg ' + config.glow
-        : 'shadow-md'} {isDark ? 'bg-slate-900/80' : 'bg-white/90'}"
-    class:scale-105={selected}
+        : 'shadow-md'} {isDark ? 'bg-slate-900/80' : 'bg-white/90'} {highlightClasses()}"
+    class:scale-105={selected && !isStatusHighlighted}
     onmouseenter={handleMouseEnter}
     onmouseleave={handleMouseLeave}
     onclick={handleClick}
