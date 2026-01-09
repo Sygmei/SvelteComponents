@@ -1,6 +1,10 @@
 <script lang="ts">
     import { BaseEdge, type EdgeProps } from "@xyflow/svelte";
-    import { groupBoxesStore, groupPortsStore, type GroupBox } from "./graphUtils";
+    import {
+        groupBoxesStore,
+        groupPortsStore,
+        type GroupBox,
+    } from "./graphUtils";
     import { get } from "svelte/store";
 
     type $$Props = EdgeProps;
@@ -28,7 +32,7 @@
     // Get the group hierarchy for a node (returns array from innermost to outermost)
     function getGroupHierarchy(nodeId: string): string[] {
         const groups: string[] = [];
-        
+
         if (nodeId.startsWith("group-")) {
             // Node is a group itself
             const groupId = nodeId.replace("group-", "");
@@ -44,7 +48,7 @@
                 groups.push("group-" + parts.slice(0, i).join("."));
             }
         }
-        
+
         return groups;
     }
 
@@ -55,14 +59,17 @@
     }
 
     // Find which groups we need to exit from source and enter to reach target
-    function findGroupTransitions(sourceId: string, targetId: string): { 
-        exitGroups: string[]; 
-        entryGroups: string[]; 
+    function findGroupTransitions(
+        sourceId: string,
+        targetId: string,
+    ): {
+        exitGroups: string[];
+        entryGroups: string[];
         commonAncestor: string | null;
     } {
         const sourceGroups = getGroupHierarchy(sourceId);
         const targetGroups = getGroupHierarchy(targetId);
-        
+
         // Find common ancestor
         let commonAncestor: string | null = null;
         for (const sg of sourceGroups) {
@@ -71,14 +78,14 @@
                 break;
             }
         }
-        
+
         // Groups to exit: source groups that are not ancestors of target
         const exitGroups: string[] = [];
         for (const sg of sourceGroups) {
             if (sg === commonAncestor) break;
             exitGroups.push(sg);
         }
-        
+
         // Groups to enter: target groups that are not ancestors of source (in reverse order)
         const entryGroups: string[] = [];
         for (const tg of targetGroups) {
@@ -86,7 +93,7 @@
             entryGroups.push(tg);
         }
         entryGroups.reverse(); // Enter from outermost to innermost
-        
+
         return { exitGroups, entryGroups, commonAncestor };
     }
 
@@ -94,21 +101,22 @@
     function getPath(): string {
         const boxes = get(groupBoxesStore);
         const ports = get(groupPortsStore);
-        
+
         const boxMap = new Map<string, GroupBox>();
-        boxes.forEach(b => boxMap.set(b.id, b));
-        
+        boxes.forEach((b) => boxMap.set(b.id, b));
+
         // Find group transitions
-        const { exitGroups, entryGroups, commonAncestor } = findGroupTransitions(source, target);
-        
+        const { exitGroups, entryGroups, commonAncestor } =
+            findGroupTransitions(source, target);
+
         // Build waypoints
         const waypoints: Array<{ x: number; y: number }> = [];
         waypoints.push({ x: sourceX, y: sourceY });
-        
+
         // Calculate intermediate turn point
         // If we're crossing groups, we need careful placement of the turn
         let turnY: number;
-        
+
         if (entryGroups.length > 0) {
             // We're entering groups - place turn well above the first group to enter
             const firstEntryGroup = entryGroups[0];
@@ -137,9 +145,9 @@
         } else if (commonAncestor) {
             // Both in the same group hierarchy - check if we need to go around sibling groups
             const ancestorBox = boxMap.get(commonAncestor);
-            
+
             // Find sibling groups between source and target
-            const siblingGroups = boxes.filter(box => {
+            const siblingGroups = boxes.filter((box) => {
                 if (box.id === commonAncestor) return false;
                 // Check if this box is a direct child of the common ancestor
                 const boxGroupId = box.id.replace("group-", "");
@@ -151,7 +159,7 @@
                 // Check if it's between source and target Y
                 return box.y > sourceY && box.y < targetY;
             });
-            
+
             if (siblingGroups.length > 0) {
                 // There's a sibling group in the way - turn above it
                 const firstSibling = siblingGroups.sort((a, b) => a.y - b.y)[0];
@@ -164,13 +172,13 @@
         } else {
             // No group involvement - check for any groups in the path
             const midY = (sourceY + targetY) / 2;
-            
+
             // Find any group whose boundary is too close to midY
             let adjustedTurnY = midY;
             for (const box of boxes) {
                 const boxTop = box.y;
                 const boxBottom = box.y + box.height;
-                
+
                 // If midY is within TURN_CLEARANCE of a box boundary, adjust
                 if (Math.abs(midY - boxTop) < TURN_CLEARANCE) {
                     adjustedTurnY = boxTop - TURN_CLEARANCE;
@@ -181,16 +189,19 @@
                     adjustedTurnY = boxTop - TURN_CLEARANCE;
                 }
             }
-            
+
             turnY = adjustedTurnY;
             turnY = Math.max(turnY, sourceY + 20);
             turnY = Math.min(turnY, targetY - 20);
         }
-        
+
         // First, identify all boxes we need to avoid (not containing source or target)
-        const boxesToAvoid = boxes.filter(box => {
+        const boxesToAvoid = boxes.filter((box) => {
             // Check if source or target is inside this box (if so, don't avoid it)
-            if (isInsideGroup(source, box.id) || isInsideGroup(target, box.id)) {
+            if (
+                isInsideGroup(source, box.id) ||
+                isInsideGroup(target, box.id)
+            ) {
                 return false;
             }
             // Check if source or target IS this group
@@ -199,56 +210,66 @@
             }
             return true;
         });
-        
+
         // Check if a smoothstep path (down, across, down) intersects any boxes
         function pathIntersectsBox(turnY: number, box: GroupBox): boolean {
             const boxLeft = box.x - TURN_CLEARANCE;
             const boxRight = box.x + box.width + TURN_CLEARANCE;
             const boxTop = box.y - TURN_CLEARANCE;
             const boxBottom = box.y + box.height + TURN_CLEARANCE;
-            
+
             // Check vertical segment 1: sourceX, sourceY -> sourceX, turnY
             if (sourceX > boxLeft && sourceX < boxRight) {
                 const segTop = Math.min(sourceY, turnY);
                 const segBottom = Math.max(sourceY, turnY);
                 if (segBottom > boxTop && segTop < boxBottom) return true;
             }
-            
+
             // Check horizontal segment: sourceX, turnY -> targetX, turnY
             if (turnY > boxTop && turnY < boxBottom) {
                 const segLeft = Math.min(sourceX, targetX);
                 const segRight = Math.max(sourceX, targetX);
                 if (segRight > boxLeft && segLeft < boxRight) return true;
             }
-            
+
             // Check vertical segment 2: targetX, turnY -> targetX, targetY
             if (targetX > boxLeft && targetX < boxRight) {
                 const segTop = Math.min(turnY, targetY);
                 const segBottom = Math.max(turnY, targetY);
                 if (segBottom > boxTop && segTop < boxBottom) return true;
             }
-            
+
             return false;
         }
-        
+
         // Find boxes that the simple path would intersect
-        const intersectingBoxes = boxesToAvoid.filter(box => pathIntersectsBox(turnY, box));
-        
+        const intersectingBoxes = boxesToAvoid.filter((box) =>
+            pathIntersectsBox(turnY, box),
+        );
+
         if (intersectingBoxes.length > 0) {
             // Need to route around boxes
-            return buildAvoidancePath(sourceX, sourceY, targetX, targetY, boxesToAvoid);
+            return buildAvoidancePath(
+                sourceX,
+                sourceY,
+                targetX,
+                targetY,
+                boxesToAvoid,
+            );
         }
-        
+
         // Simple orthogonal path: down, across, down
         waypoints.push({ x: sourceX, y: turnY });
         waypoints.push({ x: targetX, y: turnY });
         waypoints.push({ x: targetX, y: targetY });
-        
+
         // Build SVG path
         return buildPathFromWaypoints(waypoints);
     }
-    
-    function buildPathFromWaypoints(waypoints: Array<{ x: number; y: number }>): string {
+
+    function buildPathFromWaypoints(
+        waypoints: Array<{ x: number; y: number }>,
+    ): string {
         if (waypoints.length === 0) return "";
         let path = `M ${waypoints[0].x} ${waypoints[0].y}`;
         for (let i = 1; i < waypoints.length; i++) {
@@ -256,33 +277,62 @@
         }
         return path;
     }
-    
+
     function buildAvoidancePath(
-        srcX: number, srcY: number, 
-        tgtX: number, tgtY: number, 
-        allObstacles: GroupBox[]
+        srcX: number,
+        srcY: number,
+        tgtX: number,
+        tgtY: number,
+        allObstacles: GroupBox[],
     ): string {
+        const boxes = get(groupBoxesStore);
         const waypoints: Array<{ x: number; y: number }> = [];
         waypoints.push({ x: srcX, y: srcY });
-        
+
         let currentX = srcX;
         let currentY = srcY;
-        
+
+        // Find parent groups that contain both source and target
+        // These define the boundaries we must stay within
+        const sourceHierarchy = getGroupHierarchy(source);
+        const targetHierarchy = getGroupHierarchy(target);
+        const containingGroups = sourceHierarchy.filter((g) =>
+            targetHierarchy.includes(g),
+        );
+
+        // Get the innermost containing group's boundaries (with clearance)
+        // Note: Groups should have enough right padding reserved for avoidance paths
+        // since avoidance paths always go right
+        let minAllowedX = -Infinity;
+        let maxAllowedX = Infinity;
+
+        if (containingGroups.length > 0) {
+            // The first one is the innermost common ancestor
+            const innermostContainer = containingGroups[0];
+            const containerBox = boxes.find((b) => b.id === innermostContainer);
+            if (containerBox) {
+                // Must stay TURN_CLEARANCE inside the container boundaries
+                minAllowedX = containerBox.x + TURN_CLEARANCE;
+                maxAllowedX =
+                    containerBox.x + containerBox.width - TURN_CLEARANCE;
+            }
+        }
+
         // Filter to only obstacles that are between source and target vertically
         // and could potentially block our path
-        const relevantObstacles = allObstacles.filter(box => {
+        const relevantObstacles = allObstacles.filter((box) => {
             const boxTop = box.y - TURN_CLEARANCE;
             const boxBottom = box.y + box.height + TURN_CLEARANCE;
-            
+
             // Box must be in the Y range we're traversing
             if (boxBottom < srcY || boxTop > tgtY) return false;
-            
+
             // Box must overlap with either srcX or tgtX column, or be between them
             const boxLeft = box.x - TURN_CLEARANCE;
             const boxRight = box.x + box.width + TURN_CLEARANCE;
             const minX = Math.min(srcX, tgtX);
             const maxX = Math.max(srcX, tgtX);
-            
+
             // If box is completely to the left or right of our X range, skip it
             if (boxRight < minX || boxLeft > maxX) {
                 // Unless our vertical segment passes through it
@@ -290,59 +340,42 @@
                 if (tgtX > boxLeft && tgtX < boxRight) return true;
                 return false;
             }
-            
+
             return true;
         });
-        
+
         // Sort obstacles by Y position
         relevantObstacles.sort((a, b) => a.y - b.y);
-        
+
         for (const box of relevantObstacles) {
             const boxLeft = box.x - TURN_CLEARANCE;
             const boxRight = box.x + box.width + TURN_CLEARANCE;
             const boxTop = box.y - TURN_CLEARANCE;
             const boxBottom = box.y + box.height + TURN_CLEARANCE;
-            const boxCenterX = box.x + box.width / 2;
-            
+
             // Check if we actually need to go around this box
             // (our current X position would pass through it)
-            const wouldPassThrough = currentX > boxLeft && currentX < boxRight && 
-                                    currentY < boxBottom && tgtY > boxTop;
-            
+            const wouldPassThrough =
+                currentX > boxLeft &&
+                currentX < boxRight &&
+                currentY < boxBottom &&
+                tgtY > boxTop;
+
             if (!wouldPassThrough) continue;
-            
-            // Decide to go left or right based on target position
-            // But also check if going that direction would violate clearance of another box
-            let goRight = tgtX > boxCenterX;
-            
-            // Check if our chosen side would be too close to another group
-            const tentativeX = goRight ? boxRight : boxLeft;
-            for (const otherBox of allObstacles) {
-                if (otherBox.id === box.id) continue;
-                const otherLeft = otherBox.x - TURN_CLEARANCE;
-                const otherRight = otherBox.x + otherBox.width + TURN_CLEARANCE;
-                
-                // If tentativeX is inside another box's clearance zone, try the other side
-                if (tentativeX > otherLeft && tentativeX < otherRight) {
-                    // Check if the Y ranges overlap
-                    const otherTop = otherBox.y - TURN_CLEARANCE;
-                    const otherBottom = otherBox.y + otherBox.height + TURN_CLEARANCE;
-                    if (boxBottom > otherTop && boxTop < otherBottom) {
-                        // The other box is at a similar Y level - switch sides
-                        goRight = !goRight;
-                        break;
-                    }
-                }
-            }
-            
-            // Recalculate based on final decision
-            const finalX = goRight ? boxRight : boxLeft;
-            
+
+            // ALWAYS go RIGHT for avoidance paths - this ensures consistent behavior
+            // and guarantees the layout has reserved enough space on the right side
+            let finalX = boxRight;
+
+            // Clamp finalX to stay within the containing group's boundaries
+            finalX = Math.max(finalX, minAllowedX);
+            finalX = Math.min(finalX, maxAllowedX);
+
             // Calculate "smart" split point - align with where sibling edges going INTO this group would turn
             // For edges entering a group, the turn point is: entryBox.y - TURN_CLEARANCE
             // This is the same calculation used in getPath() for entryGroups
             const siblingTurnY = box.y - TURN_CLEARANCE;
-            
+
             // Use the sibling turn point if it's above the source with enough space
             // Otherwise fall back to TURN_CLEARANCE above the box
             let splitY: number;
@@ -353,27 +386,27 @@
                 // Sibling turn would be too close to source - use clearance
                 splitY = boxTop - TURN_CLEARANCE;
             }
-            
+
             // Make sure splitY is below current position
             splitY = Math.max(splitY, currentY + 20);
             if (splitY > currentY) {
                 waypoints.push({ x: currentX, y: splitY });
                 currentY = splitY;
             }
-            
+
             // Go around the box using the calculated side
             waypoints.push({ x: finalX, y: currentY });
             waypoints.push({ x: finalX, y: boxBottom });
             currentX = finalX;
             currentY = boxBottom;
         }
-        
+
         // Connect to target with orthogonal segments
         if (currentX !== tgtX) {
             waypoints.push({ x: tgtX, y: currentY });
         }
         waypoints.push({ x: tgtX, y: tgtY });
-        
+
         return buildPathFromWaypoints(waypoints);
     }
 

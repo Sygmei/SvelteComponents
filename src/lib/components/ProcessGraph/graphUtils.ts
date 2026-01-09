@@ -7,9 +7,11 @@ import { writable } from 'svelte/store';
 // Node dimensions - constants
 const NODE_WIDTH = 180;
 const NODE_HEIGHT = 80;
-const GROUP_PADDING = 40;
+const GROUP_PADDING = 40;  // Global margin for groups
 const GROUP_HEADER = 40;
 const PORT_SIZE = 1; // Invisible port nodes for entry/exit points
+const TURN_CLEARANCE = 40; // Minimum distance from group boundary for edge turns and avoidance paths
+const GLOBAL_MARGIN = 40; // Global margin respected everywhere
 
 const elk = new ELK();
 
@@ -39,10 +41,10 @@ export const groupPortsStore = writable<Map<string, GroupPort>>(new Map());
 function findCommonAncestor(group1: string, group2: string): string {
     if (group1 === 'root' || group2 === 'root') return 'root';
     if (group1 === group2) return group1;
-    
+
     const parts1 = group1.split('.');
     const parts2 = group2.split('.');
-    
+
     const commonParts: string[] = [];
     for (let i = 0; i < Math.min(parts1.length, parts2.length); i++) {
         if (parts1[i] === parts2[i]) {
@@ -51,7 +53,7 @@ function findCommonAncestor(group1: string, group2: string): string {
             break;
         }
     }
-    
+
     return commonParts.length > 0 ? commonParts.join('.') : 'root';
 }
 
@@ -66,15 +68,15 @@ function getEdgesForGroupLevel(
 ): ElkExtendedEdge[] {
     const edges: ElkExtendedEdge[] = [];
     const groupEdges = edgesInGroup.get(groupId) || [];
-    
+
     groupEdges.forEach((edge, idx) => {
         const sourceId = edge.sources[0];
         const targetId = edge.targets[0];
-        
+
         // Get the direct child representation for source and target
         const sourceChild = getDirectChildId(sourceId, groupId, groups);
         const targetChild = getDirectChildId(targetId, groupId, groups);
-        
+
         if (sourceChild && targetChild) {
             edges.push({
                 id: `${groupId}-edge-${idx}`,
@@ -83,7 +85,7 @@ function getEdgesForGroupLevel(
             });
         }
     });
-    
+
     return edges;
 }
 
@@ -92,7 +94,7 @@ function getEdgesForGroupLevel(
  */
 function getDirectChildId(nodeId: string, parentGroupId: string, groups: Map<string, GroupInfo>): string | null {
     const nodeGroup = extractGroup(nodeId);
-    
+
     if (parentGroupId === 'root') {
         // Direct child is either the process itself (if root level) or the first-level group
         if (nodeGroup === 'root') {
@@ -101,15 +103,15 @@ function getDirectChildId(nodeId: string, parentGroupId: string, groups: Map<str
         const firstPart = nodeGroup.split('.')[0];
         return `group-${firstPart}`;
     }
-    
+
     // Check if node is directly in this group
     const group = groups.get(parentGroupId);
     if (!group) return null;
-    
+
     if (group.processes.includes(nodeId)) {
         return nodeId;
     }
-    
+
     // Check if node is in a direct child group
     for (const childGroupId of group.childGroups) {
         const childGroup = groups.get(childGroupId);
@@ -119,17 +121,18 @@ function getDirectChildId(nodeId: string, parentGroupId: string, groups: Map<str
             }
         }
     }
-    
+
     // Node might be a process directly in this group
     if (nodeGroup === parentGroupId) {
         return nodeId;
     }
-    
+
     return null;
 }
 
 /**
  * Layout a single group using ELK
+ * This is called bottom-up (deepest groups first) so child sizes are already computed
  */
 async function layoutGroup(
     group: GroupInfo,
@@ -141,12 +144,10 @@ async function layoutGroup(
     collapsedGroups: Set<string> = new Set()
 ): Promise<{ width: number; height: number }> {
     const children: ElkNode[] = [];
-    
-    // Add direct child groups (using their pre-computed sizes)
-    // Skip children of collapsed groups
+
+    // Add direct child groups (using their pre-computed sizes from bottom-up layout)
     group.childGroups.forEach(childGroupId => {
         const childGroupNodeId = `group-${childGroupId}`;
-        // Skip if this child is inside a collapsed ancestor (but not itself collapsed at this level)
         if (collapsedGroups.has(childGroupNodeId)) {
             // This child is collapsed, include it with collapsed size
             children.push({
@@ -165,8 +166,8 @@ async function layoutGroup(
             }
         }
     });
-    
-    // Add direct processes (only if not inside a collapsed child group)
+
+    // Add direct processes
     group.processes.forEach(pName => {
         children.push({
             id: pName,
@@ -174,21 +175,21 @@ async function layoutGroup(
             height: NODE_HEIGHT
         });
     });
-    
+
     // Get edges internal to this group level
     const edges = getEdgesForGroupLevel(group.id, allGroups, edgesInGroup);
-    
+
     const elkGraph: ElkNode = {
         id: `layout-${group.id}`,
         layoutOptions: {
             'elk.algorithm': 'layered',
             'elk.direction': 'DOWN',
             'elk.layered.spacing.nodeNodeBetweenLayers': '60',
-            'elk.spacing.nodeNode': '40',
+            'elk.spacing.nodeNode': String(GLOBAL_MARGIN),
             'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
             'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
             'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
-            'elk.padding': `[top=${GROUP_HEADER + GROUP_PADDING},left=${GROUP_PADDING},bottom=${GROUP_PADDING},right=${GROUP_PADDING}]`,
+            'elk.padding': `[top=${GROUP_HEADER + GLOBAL_MARGIN},left=${GLOBAL_MARGIN},bottom=${GLOBAL_MARGIN},right=${GLOBAL_MARGIN}]`,
             'elk.alignment': 'CENTER',
             'elk.contentAlignment': 'H_CENTER V_TOP',
             'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES'
@@ -196,9 +197,9 @@ async function layoutGroup(
         children,
         edges
     };
-    
+
     const layouted = await elk.layout(elkGraph);
-    
+
     // Store internal layout positions
     const internalLayout = new Map<string, { x: number; y: number; width: number; height: number }>();
     layouted.children?.forEach(child => {
@@ -210,7 +211,7 @@ async function layoutGroup(
         });
     });
     groupInternalLayouts.set(group.id, internalLayout);
-    
+
     return {
         width: layouted.width || 200,
         height: layouted.height || 100
@@ -229,7 +230,7 @@ async function layoutRoot(
     collapsedGroups: Set<string> = new Set()
 ): Promise<Map<string, { x: number; y: number; width: number; height: number }>> {
     const children: ElkNode[] = [];
-    
+
     // Add root-level processes
     processes.forEach(p => {
         if (!p.name.includes('.')) {
@@ -240,7 +241,7 @@ async function layoutRoot(
             });
         }
     });
-    
+
     // Add root-level groups
     const rootGroups = Array.from(groups.values()).filter(g => !g.parentId);
     rootGroups.forEach(group => {
@@ -262,21 +263,21 @@ async function layoutRoot(
             }
         }
     });
-    
+
     // Get edges at root level
     const edges = getEdgesForGroupLevel('root', groups, edgesInGroup);
-    
+
     const elkGraph: ElkNode = {
         id: 'root',
         layoutOptions: {
             'elk.algorithm': 'layered',
             'elk.direction': 'DOWN',
             'elk.layered.spacing.nodeNodeBetweenLayers': '80',
-            'elk.spacing.nodeNode': '50',
+            'elk.spacing.nodeNode': String(GLOBAL_MARGIN + 10),
             'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
             'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
             'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
-            'elk.padding': '[top=20,left=20,bottom=20,right=20]',
+            'elk.padding': `[top=${GLOBAL_MARGIN},left=${GLOBAL_MARGIN},bottom=${GLOBAL_MARGIN},right=${GLOBAL_MARGIN}]`,
             'elk.alignment': 'CENTER',
             'elk.contentAlignment': 'H_CENTER V_TOP',
             'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES'
@@ -284,9 +285,9 @@ async function layoutRoot(
         children,
         edges
     };
-    
+
     const layouted = await elk.layout(elkGraph);
-    
+
     const rootLayout = new Map<string, { x: number; y: number; width: number; height: number }>();
     layouted.children?.forEach(child => {
         rootLayout.set(child.id, {
@@ -296,7 +297,7 @@ async function layoutRoot(
             height: child.height || 0
         });
     });
-    
+
     return rootLayout;
 }
 
@@ -313,17 +314,17 @@ function buildSvelteFlowFromLayouts(
 ): { nodes: Node[]; edges: Edge[] } {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
-    
+
     // Sort groups by depth (shallowest first for proper parent-child relationship)
     const sortedGroups = Array.from(groups.values()).sort((a, b) => a.path.length - b.path.length);
-    
+
     // Create group nodes
     sortedGroups.forEach(group => {
         const size = groupSizes.get(group.id);
         if (!size) return;
-        
+
         let position: { x: number; y: number };
-        
+
         if (!group.parentId) {
             // Root-level group
             const layout = rootLayout.get(`group-${group.id}`);
@@ -334,7 +335,7 @@ function buildSvelteFlowFromLayouts(
             const myLayout = parentLayout?.get(`group-${group.id}`);
             position = { x: myLayout?.x || 0, y: myLayout?.y || 0 };
         }
-        
+
         nodes.push({
             id: `group-${group.id}`,
             type: 'group',
@@ -347,14 +348,14 @@ function buildSvelteFlowFromLayouts(
             ...(group.parentId && { parentId: `group-${group.parentId}` })
         });
     });
-    
+
     // Create process nodes
     processes.forEach(process => {
         const groupPath = extractGroup(process.name);
         const parentGroupId = groupPath !== 'root' ? `group-${groupPath}` : undefined;
-        
+
         let position: { x: number; y: number };
-        
+
         if (groupPath === 'root') {
             // Root-level process
             const layout = rootLayout.get(process.name);
@@ -365,7 +366,7 @@ function buildSvelteFlowFromLayouts(
             const myLayout = groupLayout?.get(process.name);
             position = { x: myLayout?.x || 0, y: myLayout?.y || 0 };
         }
-        
+
         nodes.push({
             id: process.name,
             type: 'process',
@@ -379,13 +380,13 @@ function buildSvelteFlowFromLayouts(
             ...(parentGroupId && { parentId: parentGroupId })
         });
     });
-    
+
     // Create edges
     processes.forEach(process => {
         process.upstream_processes.forEach(upstream => {
             const sourceStatus = processMap.get(upstream)?.status || 'NOTSTARTED';
             const targetStatus = process.status;
-            
+
             edges.push({
                 id: `${upstream}->${process.name}`,
                 source: upstream,
@@ -396,7 +397,7 @@ function buildSvelteFlowFromLayouts(
             });
         });
     });
-    
+
     return { nodes, edges };
 }
 
@@ -414,34 +415,34 @@ function buildSvelteFlowFromLayoutsWithCollapse(
 ): { nodes: Node[]; edges: Edge[] } {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
-    
+
     // Sort groups by depth (shallowest first for proper parent-child relationship)
     const sortedGroups = Array.from(groups.values()).sort((a, b) => a.path.length - b.path.length);
-    
+
     // Track which groups to show (not inside a collapsed parent)
     const visibleGroups = new Set<string>();
-    
+
     // Create group nodes
     sortedGroups.forEach(group => {
         const groupNodeId = `group-${group.id}`;
-        
+
         // Check if this group is inside a collapsed ancestor
         const isInsideCollapsed = group.parentId && isGroupInsideCollapsed(group.parentId, collapsedGroups);
         if (isInsideCollapsed) {
             return; // Skip - this group is hidden inside a collapsed parent
         }
-        
+
         visibleGroups.add(group.id);
-        
+
         const isCollapsed = collapsedGroups.has(groupNodeId);
-        const size = isCollapsed 
+        const size = isCollapsed
             ? { width: COLLAPSED_GROUP_WIDTH, height: COLLAPSED_GROUP_HEIGHT }
             : groupSizes.get(group.id);
-        
+
         if (!size) return;
-        
+
         let position: { x: number; y: number };
-        
+
         if (!group.parentId) {
             // Root-level group
             const layout = rootLayout.get(groupNodeId);
@@ -452,7 +453,7 @@ function buildSvelteFlowFromLayoutsWithCollapse(
             const myLayout = parentLayout?.get(groupNodeId);
             position = { x: myLayout?.x || 0, y: myLayout?.y || 0 };
         }
-        
+
         nodes.push({
             id: groupNodeId,
             type: 'group',
@@ -466,21 +467,21 @@ function buildSvelteFlowFromLayoutsWithCollapse(
             ...(group.parentId && { parentId: `group-${group.parentId}` })
         });
     });
-    
+
     // Create process nodes (only if not inside collapsed group)
     processes.forEach(process => {
         const groupPath = extractGroup(process.name);
-        
+
         // Check if this process is inside a collapsed group
         const collapsedParent = isInsideCollapsedGroup(process.name, collapsedGroups, groups);
         if (collapsedParent) {
             return; // Skip - this process is hidden inside a collapsed group
         }
-        
+
         const parentGroupId = groupPath !== 'root' ? `group-${groupPath}` : undefined;
-        
+
         let position: { x: number; y: number };
-        
+
         if (groupPath === 'root') {
             // Root-level process
             const layout = rootLayout.get(process.name);
@@ -491,7 +492,7 @@ function buildSvelteFlowFromLayoutsWithCollapse(
             const myLayout = groupLayout?.get(process.name);
             position = { x: myLayout?.x || 0, y: myLayout?.y || 0 };
         }
-        
+
         nodes.push({
             id: process.name,
             type: 'process',
@@ -505,26 +506,26 @@ function buildSvelteFlowFromLayoutsWithCollapse(
             ...(parentGroupId && { parentId: parentGroupId })
         });
     });
-    
+
     // Create edges (redirecting to collapsed groups when needed)
     const addedEdges = new Set<string>(); // Avoid duplicate edges
-    
+
     processes.forEach(process => {
         process.upstream_processes.forEach(upstream => {
             // Get effective source and target (may be redirected to collapsed group)
             const effectiveSource = getEffectiveNodeId(upstream, collapsedGroups, groups);
             const effectiveTarget = getEffectiveNodeId(process.name, collapsedGroups, groups);
-            
+
             // Skip self-loops (when both ends collapse to same group)
             if (effectiveSource === effectiveTarget) return;
-            
+
             const edgeId = `${effectiveSource}->${effectiveTarget}`;
             if (addedEdges.has(edgeId)) return; // Skip duplicates
             addedEdges.add(edgeId);
-            
+
             const sourceStatus = processMap.get(upstream)?.status || 'NOTSTARTED';
             const targetStatus = process.status;
-            
+
             edges.push({
                 id: edgeId,
                 source: effectiveSource,
@@ -535,7 +536,7 @@ function buildSvelteFlowFromLayoutsWithCollapse(
             });
         });
     });
-    
+
     return { nodes, edges };
 }
 
@@ -570,7 +571,7 @@ const COLLAPSED_GROUP_HEIGHT = 60;
 function isInsideCollapsedGroup(nodeId: string, collapsedGroups: Set<string>, groups: Map<string, GroupInfo>): string | null {
     const nodeGroup = extractGroup(nodeId);
     if (nodeGroup === 'root') return null;
-    
+
     // Check if this node's group or any ancestor is collapsed
     const parts = nodeGroup.split('.');
     for (let i = 1; i <= parts.length; i++) {
@@ -591,8 +592,172 @@ function getEffectiveNodeId(nodeId: string, collapsedGroups: Set<string>, groups
 }
 
 /**
+ * Get the group hierarchy for a node (returns array from innermost to outermost)
+ */
+function getGroupHierarchyForNode(nodeId: string): string[] {
+    const groups: string[] = [];
+
+    if (nodeId.startsWith("group-")) {
+        // Node is a group itself
+        const groupId = nodeId.replace("group-", "");
+        const parts = groupId.split(".");
+        // Add parent groups (not the group itself)
+        for (let i = parts.length - 1; i >= 1; i--) {
+            groups.push("group-" + parts.slice(0, i).join("."));
+        }
+    } else {
+        // Regular process node
+        const parts = nodeId.split(".");
+        for (let i = parts.length - 1; i >= 1; i--) {
+            groups.push("group-" + parts.slice(0, i).join("."));
+        }
+    }
+
+    return groups;
+}
+
+/**
+ * Check if node is inside a group (at any level)
+ */
+function isNodeInsideGroup(nodeId: string, groupId: string): boolean {
+    const hierarchy = getGroupHierarchyForNode(nodeId);
+    return hierarchy.includes(groupId);
+}
+
+/**
+ * Analyze edges after initial layout and calculate required group width expansions
+ * for avoidance paths that would otherwise violate parent group boundaries.
+ * 
+ * IMPORTANT: Avoidance paths ALWAYS go to the RIGHT. This ensures consistent
+ * layout behavior and guarantees enough space is reserved.
+ */
+function calculateAvoidanceExpansions(
+    absolutePositions: Map<string, { x: number; y: number; width: number; height: number }>,
+    processes: Process[],
+    groups: Map<string, GroupInfo>,
+    collapsedGroups: Set<string>
+): Map<string, number> {
+    const expansions = new Map<string, number>(); // groupId -> additional width needed on RIGHT side
+
+    // Build edges list
+    interface EdgeInfo {
+        sourceId: string;
+        targetId: string;
+        sourcePos: { x: number; y: number; width: number; height: number };
+        targetPos: { x: number; y: number; width: number; height: number };
+    }
+
+    const edges: EdgeInfo[] = [];
+    processes.forEach(process => {
+        process.upstream_processes.forEach(upstream => {
+            const effectiveSource = getEffectiveNodeId(upstream, collapsedGroups, groups);
+            const effectiveTarget = getEffectiveNodeId(process.name, collapsedGroups, groups);
+
+            if (effectiveSource === effectiveTarget) return;
+
+            const sourcePos = absolutePositions.get(effectiveSource);
+            const targetPos = absolutePositions.get(effectiveTarget);
+
+            if (sourcePos && targetPos) {
+                edges.push({
+                    sourceId: effectiveSource,
+                    targetId: effectiveTarget,
+                    sourcePos,
+                    targetPos
+                });
+            }
+        });
+    });
+
+    // For each edge, check if it needs an avoidance path that would violate parent boundaries
+    edges.forEach(edge => {
+        const { sourceId, targetId, sourcePos, targetPos } = edge;
+
+        const srcCenterX = sourcePos.x + sourcePos.width / 2;
+        const srcBottomY = sourcePos.y + sourcePos.height;
+        const tgtCenterX = targetPos.x + targetPos.width / 2;
+        const tgtTopY = targetPos.y;
+
+        // Find containing groups (groups that contain both source and target)
+        const sourceHierarchy = getGroupHierarchyForNode(sourceId);
+        const targetHierarchy = getGroupHierarchyForNode(targetId);
+        const containingGroups = sourceHierarchy.filter(g => targetHierarchy.includes(g));
+
+        // Find groups that are obstacles (between source and target, not containing them)
+        const obstacleGroups: Array<{ id: string; pos: { x: number; y: number; width: number; height: number } }> = [];
+
+        absolutePositions.forEach((pos, id) => {
+            if (!id.startsWith('group-')) return;
+
+            // Skip if this group contains source or target
+            if (isNodeInsideGroup(sourceId, id) || isNodeInsideGroup(targetId, id)) return;
+            if (sourceId === id || targetId === id) return;
+
+            // Skip collapsed groups' children
+            if (collapsedGroups.has(id)) return;
+
+            // Check if the group is in the path's Y range
+            const boxTop = pos.y - TURN_CLEARANCE;
+            const boxBottom = pos.y + pos.height + TURN_CLEARANCE;
+
+            if (boxBottom < srcBottomY || boxTop > tgtTopY) return;
+
+            // Check if the group could be an obstacle (horizontally in the way)
+            const boxLeft = pos.x - TURN_CLEARANCE;
+            const boxRight = pos.x + pos.width + TURN_CLEARANCE;
+
+            const pathMinX = Math.min(srcCenterX, tgtCenterX);
+            const pathMaxX = Math.max(srcCenterX, tgtCenterX);
+
+            // If box overlaps with the path's X range
+            if (boxRight >= pathMinX && boxLeft <= pathMaxX) {
+                obstacleGroups.push({ id, pos });
+            }
+        });
+
+        // If there are obstacles, calculate avoidance path requirements
+        if (obstacleGroups.length === 0) return;
+
+        // For each obstacle, the avoidance path ALWAYS goes RIGHT
+        obstacleGroups.forEach(obstacle => {
+            const boxRight = obstacle.pos.x + obstacle.pos.width + TURN_CLEARANCE;
+
+            // Avoidance path always goes to the right of the obstacle
+            const avoidanceX = boxRight;
+
+            // Check if this avoidance path would violate any containing group's boundary
+            if (containingGroups.length > 0) {
+                const innermostContainer = containingGroups[0];
+                const containerPos = absolutePositions.get(innermostContainer);
+
+                if (containerPos) {
+                    const containerRight = containerPos.x + containerPos.width - TURN_CLEARANCE;
+
+                    // Calculate how much we'd violate the right boundary
+                    if (avoidanceX > containerRight) {
+                        const violation = avoidanceX - containerRight;
+                        // We need to expand the container group's right padding
+                        const containerId = innermostContainer.replace('group-', '');
+                        const currentExpansion = expansions.get(containerId) || 0;
+                        // Add TURN_CLEARANCE extra to ensure comfortable spacing
+                        const neededExpansion = violation + TURN_CLEARANCE;
+                        expansions.set(containerId, Math.max(currentExpansion, neededExpansion));
+                    }
+                }
+            }
+        });
+    });
+
+    return expansions;
+}
+
+/**
  * Build a unified hierarchical ELK graph with all nodes and edges
  * This allows ELK to properly route edges around group boundaries
+ * 
+ * Key approach: Build deepest groups first (bottom-up), then parent groups.
+ * Reserved space for avoidance paths is added as extra right padding on groups
+ * that have edges bypassing them.
  */
 function buildUnifiedElkGraph(
     processes: Process[],
@@ -607,15 +772,16 @@ function buildUnifiedElkGraph(
             'elk.direction': 'DOWN',
             'elk.layered.spacing.nodeNodeBetweenLayers': '80',
             'elk.layered.spacing.edgeNodeBetweenLayers': '30',
-            'elk.spacing.nodeNode': '50',
+            'elk.spacing.nodeNode': String(GLOBAL_MARGIN + 10),
             'elk.spacing.edgeEdge': '20',
             'elk.spacing.edgeNode': '30',
             'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
             'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
             'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
             'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
-            'elk.padding': '[top=20,left=20,bottom=20,right=20]',
+            'elk.padding': `[top=${GLOBAL_MARGIN},left=${GLOBAL_MARGIN},bottom=${GLOBAL_MARGIN},right=${GLOBAL_MARGIN}]`,
             'elk.alignment': 'CENTER',
+            'elk.contentAlignment': 'H_CENTER V_TOP',
             'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
             'elk.edgeRouting': 'ORTHOGONAL'
         },
@@ -623,11 +789,18 @@ function buildUnifiedElkGraph(
         edges: []
     };
 
-    // Build group nodes recursively
+    // Pre-calculate which groups need extra right padding for avoidance paths
+    // A group needs extra right padding if there's an edge that:
+    // 1. Starts from inside the group (or the group itself)
+    // 2. Goes to a node that is NOT inside the group
+    // 3. The target is positioned such that the edge needs to go around the group
+    const groupsNeedingAvoidanceSpace = calculateGroupsNeedingAvoidanceSpace(processes, groups, collapsedGroups);
+
+    // Build group nodes recursively with proper bottom-up sizing
     function buildGroupNode(group: GroupInfo): ElkNode {
         const groupNodeId = `group-${group.id}`;
         const isCollapsed = collapsedGroups.has(groupNodeId);
-        
+
         if (isCollapsed) {
             // Collapsed group is a simple node
             return {
@@ -639,36 +812,37 @@ function buildUnifiedElkGraph(
                 }
             };
         }
-        
+
+        // Check if this group needs extra right padding for avoidance paths
+        const needsAvoidanceSpace = groupsNeedingAvoidanceSpace.has(group.id);
+        const rightPadding = needsAvoidanceSpace ? GLOBAL_MARGIN + TURN_CLEARANCE : GLOBAL_MARGIN;
+
         const elkGroup: ElkNode = {
             id: groupNodeId,
             layoutOptions: {
                 'elk.algorithm': 'layered',
                 'elk.direction': 'DOWN',
                 'elk.layered.spacing.nodeNodeBetweenLayers': '60',
-                'elk.spacing.nodeNode': '40',
+                'elk.spacing.nodeNode': String(GLOBAL_MARGIN),
                 'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
                 'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
                 'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
-                'elk.padding': `[top=${GROUP_HEADER + GROUP_PADDING},left=${GROUP_PADDING},bottom=${GROUP_PADDING},right=${GROUP_PADDING}]`,
+                'elk.padding': `[top=${GROUP_HEADER + GLOBAL_MARGIN},left=${GLOBAL_MARGIN},bottom=${GLOBAL_MARGIN},right=${rightPadding}]`,
                 'elk.alignment': 'CENTER',
                 'elk.contentAlignment': 'H_CENTER V_TOP'
             },
             children: [],
             labels: [{ text: group.path[group.path.length - 1] }]
         };
-        
-        // Add child groups
+
+        // Add child groups (these will be recursively built bottom-up by ELK)
         group.childGroups.forEach(childGroupId => {
             const childGroup = groups.get(childGroupId);
             if (childGroup) {
-                // Check if parent (this group) is collapsed - if so, skip children
-                if (!isCollapsed) {
-                    elkGroup.children!.push(buildGroupNode(childGroup));
-                }
+                elkGroup.children!.push(buildGroupNode(childGroup));
             }
         });
-        
+
         // Add processes directly in this group
         group.processes.forEach(pName => {
             elkGroup.children!.push({
@@ -677,7 +851,7 @@ function buildUnifiedElkGraph(
                 height: NODE_HEIGHT
             });
         });
-        
+
         return elkGroup;
     }
 
@@ -706,10 +880,214 @@ function buildUnifiedElkGraph(
             // Get effective IDs (redirect to collapsed groups if needed)
             const effectiveSource = getEffectiveNodeId(upstream, collapsedGroups, groups);
             const effectiveTarget = getEffectiveNodeId(process.name, collapsedGroups, groups);
-            
+
             // Skip self-loops
             if (effectiveSource === effectiveTarget) return;
-            
+
+            edges.push({
+                id: `${effectiveSource}->${effectiveTarget}`,
+                sources: [effectiveSource],
+                targets: [effectiveTarget]
+            });
+        });
+    });
+    graph.edges = edges;
+
+    return graph;
+}
+
+/**
+ * Calculate which groups need extra right padding for avoidance paths.
+ * A group needs avoidance space if there's an edge that bypasses it
+ * (source before group, target after group, and neither inside the group)
+ */
+function calculateGroupsNeedingAvoidanceSpace(
+    processes: Process[],
+    groups: Map<string, GroupInfo>,
+    collapsedGroups: Set<string>
+): Set<string> {
+    const needsSpace = new Set<string>();
+
+    // Build a map of which group each process belongs to
+    const processToGroup = new Map<string, string>();
+    processes.forEach(p => {
+        const group = extractGroup(p.name);
+        processToGroup.set(p.name, group);
+    });
+
+    // For each edge, check if it needs to bypass any groups
+    processes.forEach(process => {
+        process.upstream_processes.forEach(upstream => {
+            const effectiveSource = getEffectiveNodeId(upstream, collapsedGroups, groups);
+            const effectiveTarget = getEffectiveNodeId(process.name, collapsedGroups, groups);
+
+            if (effectiveSource === effectiveTarget) return;
+
+            const sourceGroup = effectiveSource.startsWith('group-')
+                ? effectiveSource.replace('group-', '')
+                : processToGroup.get(effectiveSource) || 'root';
+            const targetGroup = effectiveTarget.startsWith('group-')
+                ? effectiveTarget.replace('group-', '')
+                : processToGroup.get(effectiveTarget) || 'root';
+
+            // Find common ancestor
+            const commonAncestor = findCommonAncestor(sourceGroup, targetGroup);
+
+            // Check all groups - any group that is:
+            // 1. At the same level or below the common ancestor
+            // 2. Not containing source or target
+            // ... might need avoidance space
+            groups.forEach((group, groupId) => {
+                // Skip if this group contains source or target
+                if (sourceGroup === groupId || sourceGroup.startsWith(groupId + '.')) return;
+                if (targetGroup === groupId || targetGroup.startsWith(groupId + '.')) return;
+
+                // Skip collapsed groups
+                if (collapsedGroups.has(`group-${groupId}`)) return;
+
+                // If this group is a sibling of source/target path, it may need avoidance space
+                // Check if it's under the common ancestor but not in source/target path
+                if (commonAncestor === 'root' || groupId.startsWith(commonAncestor + '.') || commonAncestor.startsWith(groupId)) {
+                    // This group might be bypassed by the edge
+                    // Mark it and all its ancestors up to common ancestor
+                    let current = groupId;
+                    while (current && current !== 'root') {
+                        if (current !== sourceGroup && current !== targetGroup &&
+                            !sourceGroup.startsWith(current + '.') && !targetGroup.startsWith(current + '.')) {
+                            needsSpace.add(current);
+                        }
+                        const parts = current.split('.');
+                        if (parts.length <= 1) break;
+                        current = parts.slice(0, -1).join('.');
+                    }
+                }
+            });
+        });
+    });
+
+    return needsSpace;
+}
+
+/**
+ * Build unified ELK graph with expanded padding for groups that need more space for avoidance paths
+ * Always adds padding to the RIGHT side (avoidance paths always go right)
+ */
+function buildUnifiedElkGraphWithExpansions(
+    processes: Process[],
+    groups: Map<string, GroupInfo>,
+    nodeWidths: Map<string, number>,
+    collapsedGroups: Set<string>,
+    expansions: Map<string, number> // groupId -> additional width needed on RIGHT side
+): ElkNode {
+    const graph: ElkNode = {
+        id: 'root',
+        layoutOptions: {
+            'elk.algorithm': 'layered',
+            'elk.direction': 'DOWN',
+            'elk.layered.spacing.nodeNodeBetweenLayers': '80',
+            'elk.layered.spacing.edgeNodeBetweenLayers': '30',
+            'elk.spacing.nodeNode': String(GLOBAL_MARGIN + 10),
+            'elk.spacing.edgeEdge': '20',
+            'elk.spacing.edgeNode': '30',
+            'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
+            'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
+            'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+            'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
+            'elk.padding': `[top=${GLOBAL_MARGIN},left=${GLOBAL_MARGIN},bottom=${GLOBAL_MARGIN},right=${GLOBAL_MARGIN}]`,
+            'elk.alignment': 'CENTER',
+            'elk.contentAlignment': 'H_CENTER V_TOP',
+            'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
+            'elk.edgeRouting': 'ORTHOGONAL'
+        },
+        children: [],
+        edges: []
+    };
+
+    // Build group nodes recursively, applying padding expansions where needed
+    function buildGroupNode(group: GroupInfo): ElkNode {
+        const groupNodeId = `group-${group.id}`;
+        const isCollapsed = collapsedGroups.has(groupNodeId);
+
+        if (isCollapsed) {
+            return {
+                id: groupNodeId,
+                width: COLLAPSED_GROUP_WIDTH,
+                height: COLLAPSED_GROUP_HEIGHT,
+                layoutOptions: {
+                    'elk.portConstraints': 'FREE'
+                }
+            };
+        }
+
+        // Check if this group needs expanded RIGHT padding for avoidance paths
+        const expansion = expansions.get(group.id) || 0;
+        const rightPadding = GLOBAL_MARGIN + expansion;
+
+        const elkGroup: ElkNode = {
+            id: groupNodeId,
+            layoutOptions: {
+                'elk.algorithm': 'layered',
+                'elk.direction': 'DOWN',
+                'elk.layered.spacing.nodeNodeBetweenLayers': '60',
+                'elk.spacing.nodeNode': String(GLOBAL_MARGIN),
+                'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
+                'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
+                'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+                'elk.padding': `[top=${GROUP_HEADER + GLOBAL_MARGIN},left=${GLOBAL_MARGIN},bottom=${GLOBAL_MARGIN},right=${rightPadding}]`,
+                'elk.alignment': 'CENTER',
+                'elk.contentAlignment': 'H_CENTER V_TOP'
+            },
+            children: [],
+            labels: [{ text: group.path[group.path.length - 1] }]
+        };
+
+        // Add child groups
+        group.childGroups.forEach(childGroupId => {
+            const childGroup = groups.get(childGroupId);
+            if (childGroup) {
+                elkGroup.children!.push(buildGroupNode(childGroup));
+            }
+        });
+
+        // Add processes directly in this group
+        group.processes.forEach(pName => {
+            elkGroup.children!.push({
+                id: pName,
+                width: nodeWidths.get(pName) || NODE_WIDTH,
+                height: NODE_HEIGHT
+            });
+        });
+
+        return elkGroup;
+    }
+
+    // Add root-level processes
+    processes.forEach(p => {
+        if (!p.name.includes('.')) {
+            graph.children!.push({
+                id: p.name,
+                width: nodeWidths.get(p.name) || NODE_WIDTH,
+                height: NODE_HEIGHT
+            });
+        }
+    });
+
+    // Add root-level groups
+    const rootGroups = Array.from(groups.values()).filter(g => !g.parentId);
+    rootGroups.sort((a, b) => a.id.localeCompare(b.id));
+    rootGroups.forEach(group => {
+        graph.children!.push(buildGroupNode(group));
+    });
+
+    // Add ALL edges at the root level
+    const edges: ElkExtendedEdge[] = [];
+    processes.forEach(process => {
+        process.upstream_processes.forEach(upstream => {
+            const effectiveSource = getEffectiveNodeId(upstream, collapsedGroups, groups);
+            const effectiveTarget = getEffectiveNodeId(process.name, collapsedGroups, groups);
+
+            if (effectiveSource === effectiveTarget) return;
+
             edges.push({
                 id: `${effectiveSource}->${effectiveTarget}`,
                 sources: [effectiveSource],
@@ -734,13 +1112,13 @@ function unifiedElkToSvelteFlow(
 ): { nodes: Node[]; edges: Edge[] } {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
-    
+
     // Build absolute positions for all nodes (needed for edge routing)
     const absolutePositions = new Map<string, { x: number; y: number; width: number; height: number }>();
-    
+
     function calculateAbsolutePositions(elkNode: ElkNode, offsetX: number = 0, offsetY: number = 0): void {
         if (!elkNode.children) return;
-        
+
         elkNode.children.forEach(child => {
             const absX = offsetX + (child.x || 0);
             const absY = offsetY + (child.y || 0);
@@ -750,21 +1128,21 @@ function unifiedElkToSvelteFlow(
                 width: child.width || 0,
                 height: child.height || 0
             });
-            
+
             // Recurse for groups
             if (child.id.startsWith('group-') && !collapsedGroups.has(child.id)) {
                 calculateAbsolutePositions(child, absX, absY);
             }
         });
     }
-    
+
     calculateAbsolutePositions(elkGraph);
-    
+
     // Build group bounding boxes array for edge routing
     const groupBoxes: GroupBox[] = [];
     // Also calculate entry/exit port positions for each group
     const groupPorts = new Map<string, GroupPort>();
-    
+
     absolutePositions.forEach((pos, id) => {
         // Include all groups (both expanded and collapsed) for edge routing
         if (id.startsWith('group-')) {
@@ -776,7 +1154,7 @@ function unifiedElkToSvelteFlow(
                 height: pos.height,
                 collapsed: collapsedGroups.has(id)
             });
-            
+
             // Calculate entry port (top-center, above the header)
             const entryPortId = `${id}-entry`;
             groupPorts.set(entryPortId, {
@@ -785,7 +1163,7 @@ function unifiedElkToSvelteFlow(
                 x: pos.x + pos.width / 2,
                 y: pos.y - 10 // Just above the group
             });
-            
+
             // Calculate exit port (bottom-center, below the group)
             const exitPortId = `${id}-exit`;
             groupPorts.set(exitPortId, {
@@ -796,7 +1174,7 @@ function unifiedElkToSvelteFlow(
             });
         }
     });
-    
+
     // Update the global stores for edge routing
     groupBoxesStore.set(groupBoxes);
     groupPortsStore.set(groupPorts);
@@ -806,12 +1184,12 @@ function unifiedElkToSvelteFlow(
 
         elkNode.children.forEach(child => {
             const isGroup = child.id.startsWith('group-');
-            
+
             if (isGroup) {
                 const groupId = child.id.replace('group-', '');
                 const group = groups.get(groupId);
                 const isCollapsed = collapsedGroups.has(child.id);
-                
+
                 nodes.push({
                     id: child.id,
                     type: 'group',
@@ -833,7 +1211,7 @@ function unifiedElkToSvelteFlow(
                 const process = processMap.get(child.id);
                 if (process) {
                     const groupPath = extractGroup(process.name);
-                    
+
                     nodes.push({
                         id: child.id,
                         type: 'process',
@@ -861,23 +1239,23 @@ function unifiedElkToSvelteFlow(
             elkNode.edges.forEach(elkEdge => {
                 const sourceId = elkEdge.sources[0];
                 const targetId = elkEdge.targets[0];
-                
+
                 // Get effective IDs for collapsed groups
                 const effectiveSource = getEffectiveNodeId(sourceId, collapsedGroups, groups);
                 const effectiveTarget = getEffectiveNodeId(targetId, collapsedGroups, groups);
-                
+
                 if (effectiveSource === effectiveTarget) return;
-                
+
                 const edgeId = `${effectiveSource}->${effectiveTarget}`;
                 if (addedEdges.has(edgeId)) return;
                 addedEdges.add(edgeId);
-                
+
                 // Get source status for edge styling
                 const sourceProcess = processMap.get(sourceId) || processMap.get(effectiveSource.replace('group-', ''));
                 const targetProcess = processMap.get(targetId) || processMap.get(effectiveTarget.replace('group-', ''));
                 const sourceStatus = sourceProcess?.status || 'NOTSTARTED';
                 const targetStatus = targetProcess?.status || 'NOTSTARTED';
-                
+
                 // Use custom elk edge type - it reads group boxes from store
                 edges.push({
                     id: edgeId,
@@ -889,7 +1267,7 @@ function unifiedElkToSvelteFlow(
                 });
             });
         }
-        
+
         // Recurse into children
         if (elkNode.children) {
             elkNode.children.forEach(child => {
@@ -899,7 +1277,7 @@ function unifiedElkToSvelteFlow(
             });
         }
     }
-    
+
     extractEdgesFromElk(elkGraph);
 
     return { nodes, edges };
@@ -908,9 +1286,14 @@ function unifiedElkToSvelteFlow(
 /**
  * Converts process data to Svelte Flow nodes and edges with hierarchical ELK layout
  * Uses unified ELK graph for proper edge routing around groups
+ * 
+ * This implements a two-pass layout approach:
+ * 1. First pass: compute initial layout
+ * 2. Analyze avoidance path requirements
+ * 3. If groups need expansion, compute second pass with expanded padding
  */
 export async function processesToFlowAsync(
-    processes: Process[], 
+    processes: Process[],
     collapsedGroups: Set<string> = new Set()
 ): Promise<{ nodes: Node[]; edges: Edge[] }> {
     const processMap = new Map<string, Process>();
@@ -918,19 +1301,61 @@ export async function processesToFlowAsync(
 
     // Build group hierarchy
     const groups = buildGroupHierarchy(processes);
-    
+
     // Pre-calculate node widths
     const nodeWidths = new Map<string, number>();
     processes.forEach(p => {
         nodeWidths.set(p.name, calculateNodeWidth(p.name));
     });
 
-    // Build unified hierarchical ELK graph
-    const elkGraph = buildUnifiedElkGraph(processes, groups, nodeWidths, collapsedGroups);
-    
-    // Run ELK layout
-    const layoutedGraph = await elk.layout(elkGraph);
-    
+    // PASS 1: Build and run initial layout
+    let elkGraph = buildUnifiedElkGraph(processes, groups, nodeWidths, collapsedGroups);
+    let layoutedGraph = await elk.layout(elkGraph);
+
+    // Calculate absolute positions from first pass for avoidance analysis
+    const absolutePositions = new Map<string, { x: number; y: number; width: number; height: number }>();
+
+    function calculateAbsolutePositions(elkNode: ElkNode, offsetX: number = 0, offsetY: number = 0): void {
+        if (!elkNode.children) return;
+
+        elkNode.children.forEach(child => {
+            const absX = offsetX + (child.x || 0);
+            const absY = offsetY + (child.y || 0);
+            absolutePositions.set(child.id, {
+                x: absX,
+                y: absY,
+                width: child.width || 0,
+                height: child.height || 0
+            });
+
+            // Recurse for groups
+            if (child.id.startsWith('group-') && !collapsedGroups.has(child.id)) {
+                calculateAbsolutePositions(child, absX, absY);
+            }
+        });
+    }
+
+    calculateAbsolutePositions(layoutedGraph);
+
+    // Analyze avoidance path requirements
+    const expansions = calculateAvoidanceExpansions(absolutePositions, processes, groups, collapsedGroups);
+
+    // Debug: Log expansions
+    if (expansions.size > 0) {
+        console.log('[Layout] Groups needing expansion for avoidance paths:');
+        expansions.forEach((expansion, groupId) => {
+            console.log(`  - ${groupId}: +${expansion}px padding on each side`);
+        });
+    }
+
+    // PASS 2: If expansions needed, rebuild graph with expanded padding
+    if (expansions.size > 0) {
+        console.log('[Layout] Running second pass with expanded padding...');
+        // Rebuild graph with expanded padding for groups that need it
+        elkGraph = buildUnifiedElkGraphWithExpansions(processes, groups, nodeWidths, collapsedGroups, expansions);
+        layoutedGraph = await elk.layout(elkGraph);
+    }
+
     // Convert to Svelte Flow format
     return unifiedElkToSvelteFlow(layoutedGraph, processes, processMap, groups, collapsedGroups);
 }
@@ -962,13 +1387,13 @@ function processesToFlowSync(
 ): { nodes: Node[]; edges: Edge[] } {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
-    
+
     const levels = calculateLevels(processes);
     const groupLayouts = new Map<string, { x: number; y: number; width: number; height: number }>();
     const nodePositions = new Map<string, { x: number; y: number }>();
-    
+
     let currentX = 0;
-    
+
     // Layout root processes
     const rootProcesses = processes.filter(p => !p.name.includes('.'));
     if (rootProcesses.length > 0) {
@@ -978,7 +1403,7 @@ function processesToFlowSync(
             if (!levelGroups.has(level)) levelGroups.set(level, []);
             levelGroups.get(level)!.push(p.name);
         });
-        
+
         let maxWidth = 0;
         levelGroups.forEach((names, level) => {
             let x = currentX;
@@ -991,22 +1416,22 @@ function processesToFlowSync(
         });
         currentX += maxWidth + 50;
     }
-    
+
     // Layout groups
     const rootGroups = Array.from(groups.values()).filter(g => !g.parentId);
     rootGroups.sort((a, b) => a.id.localeCompare(b.id));
-    
+
     rootGroups.forEach(group => {
         const layout = layoutGroupSimple(group, groups, levels, nodeWidths, nodePositions, groupLayouts, currentX);
         currentX += layout.width + 50;
     });
-    
+
     // Create group nodes
     const sortedGroups = Array.from(groups.values()).sort((a, b) => a.path.length - b.path.length);
     sortedGroups.forEach(group => {
         const layout = groupLayouts.get(group.id);
         if (!layout) return;
-        
+
         let position = { x: layout.x, y: layout.y };
         if (group.parentId) {
             const parentLayout = groupLayouts.get(group.parentId);
@@ -1017,7 +1442,7 @@ function processesToFlowSync(
                 };
             }
         }
-        
+
         nodes.push({
             id: `group-${group.id}`,
             type: 'group',
@@ -1030,15 +1455,15 @@ function processesToFlowSync(
             ...(group.parentId && { parentId: `group-${group.parentId}` })
         });
     });
-    
+
     // Create process nodes
     processes.forEach(process => {
         const pos = nodePositions.get(process.name);
         if (!pos) return;
-        
+
         const groupPath = extractGroup(process.name);
         const parentGroupId = groupPath !== 'root' ? `group-${groupPath}` : undefined;
-        
+
         let position = { x: pos.x, y: pos.y };
         if (parentGroupId && groupPath !== 'root') {
             const parentLayout = groupLayouts.get(groupPath);
@@ -1049,7 +1474,7 @@ function processesToFlowSync(
                 };
             }
         }
-        
+
         nodes.push({
             id: process.name,
             type: 'process',
@@ -1063,13 +1488,13 @@ function processesToFlowSync(
             ...(parentGroupId && { parentId: parentGroupId })
         });
     });
-    
+
     // Create edges
     processes.forEach(process => {
         process.upstream_processes.forEach(upstream => {
             const sourceStatus = processMap.get(upstream)?.status || 'NOTSTARTED';
             const targetStatus = process.status;
-            
+
             edges.push({
                 id: `${upstream}->${process.name}`,
                 source: upstream,
@@ -1080,7 +1505,7 @@ function processesToFlowSync(
             });
         });
     });
-    
+
     return { nodes, edges };
 }
 
@@ -1095,37 +1520,37 @@ function layoutGroupSimple(
 ): { width: number; height: number } {
     const childGroups = group.childGroups.map(id => allGroups.get(id)!).filter(Boolean);
     const directProcesses = group.processes;
-    
+
     let childGroupsWidth = 0;
     let childGroupsHeight = 0;
-    
+
     childGroups.sort((a, b) => a.id.localeCompare(b.id));
-    
+
     let childX = startX + GROUP_PADDING;
     childGroups.forEach(childGroup => {
         const childLayout = layoutGroupSimple(
-            childGroup, allGroups, levels, nodeWidths, 
+            childGroup, allGroups, levels, nodeWidths,
             nodePositions, groupLayouts, childX
         );
         childGroupsWidth += childLayout.width + 50;
         childGroupsHeight = Math.max(childGroupsHeight, childLayout.height);
         childX += childLayout.width + 50;
     });
-    
+
     const processLevels = new Map<number, string[]>();
     directProcesses.forEach(pName => {
         const level = levels.get(pName) || 0;
         if (!processLevels.has(level)) processLevels.set(level, []);
         processLevels.get(level)!.push(pName);
     });
-    
+
     let processesWidth = 0;
     let processesHeight = 0;
-    
+
     const sortedLevels = Array.from(processLevels.keys()).sort((a, b) => a - b);
     const levelIndexMap = new Map<number, number>();
     sortedLevels.forEach((level, idx) => levelIndexMap.set(level, idx));
-    
+
     sortedLevels.forEach(level => {
         const names = processLevels.get(level)!;
         let levelWidth = 0;
@@ -1135,46 +1560,46 @@ function layoutGroupSimple(
         });
         processesWidth = Math.max(processesWidth, levelWidth);
     });
-    
+
     if (sortedLevels.length > 0) {
         processesHeight = sortedLevels.length * NODE_HEIGHT + (sortedLevels.length - 1) * 60;
     }
-    
+
     const contentWidth = Math.max(childGroupsWidth, processesWidth);
     const contentHeight = childGroupsHeight + (childGroupsHeight > 0 && processesHeight > 0 ? 60 : 0) + processesHeight;
-    
+
     const groupWidth = Math.max(contentWidth + GROUP_PADDING * 2, 250);
     const groupHeight = Math.max(contentHeight + GROUP_PADDING * 2 + GROUP_HEADER, 160);
-    
+
     const processStartY = GROUP_HEADER + GROUP_PADDING + childGroupsHeight + (childGroupsHeight > 0 ? 60 : 0);
-    
+
     sortedLevels.forEach(level => {
         const names = processLevels.get(level)!;
         const levelIdx = levelIndexMap.get(level)!;
-        
+
         let levelWidth = 0;
         names.forEach((name, idx) => {
             levelWidth += nodeWidths.get(name) || NODE_WIDTH;
             if (idx < names.length - 1) levelWidth += 50;
         });
-        
+
         let x = GROUP_PADDING + (groupWidth - GROUP_PADDING * 2 - levelWidth) / 2;
         const y = processStartY + levelIdx * (NODE_HEIGHT + 60);
-        
+
         names.forEach(name => {
             const width = nodeWidths.get(name) || NODE_WIDTH;
             nodePositions.set(name, { x: startX + x, y });
             x += width + 50;
         });
     });
-    
+
     groupLayouts.set(group.id, {
         x: startX,
         y: 0,
         width: groupWidth,
         height: groupHeight
     });
-    
+
     childX = startX + GROUP_PADDING;
     childGroups.forEach(childGroup => {
         const childLayout = groupLayouts.get(childGroup.id)!;
@@ -1182,7 +1607,7 @@ function layoutGroupSimple(
         childLayout.y = GROUP_HEADER + GROUP_PADDING;
         childX += childLayout.width + 50;
     });
-    
+
     return { width: groupWidth, height: groupHeight };
 }
 
@@ -1209,19 +1634,21 @@ function buildElkGraph(
             'elk.direction': 'DOWN',
             'elk.layered.spacing.nodeNodeBetweenLayers': '80',
             'elk.layered.spacing.edgeNodeBetweenLayers': '40',
-            'elk.spacing.nodeNode': '50',
+            'elk.spacing.nodeNode': String(GLOBAL_MARGIN + 10),
             'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
             'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
             'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
             'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
-            'elk.padding': '[top=20,left=20,bottom=20,right=20]'
+            'elk.padding': `[top=${GLOBAL_MARGIN},left=${GLOBAL_MARGIN},bottom=${GLOBAL_MARGIN},right=${GLOBAL_MARGIN}]`,
+            'elk.alignment': 'CENTER',
+            'elk.contentAlignment': 'H_CENTER V_TOP'
         },
         children: [],
         edges: []
     };
 
     const rootGroups = Array.from(groups.values()).filter(g => !g.parentId);
-    
+
     // Add root-level processes
     processes.forEach(p => {
         if (!p.name.includes('.')) {
@@ -1273,10 +1700,12 @@ function buildElkGroup(
             'elk.algorithm': 'layered',
             'elk.direction': 'DOWN',
             'elk.layered.spacing.nodeNodeBetweenLayers': '60',
-            'elk.spacing.nodeNode': '40',
+            'elk.spacing.nodeNode': String(GLOBAL_MARGIN),
             'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
             'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
-            'elk.padding': `[top=${GROUP_HEADER + GROUP_PADDING},left=${GROUP_PADDING},bottom=${GROUP_PADDING},right=${GROUP_PADDING}]`
+            'elk.padding': `[top=${GROUP_HEADER + GLOBAL_MARGIN},left=${GLOBAL_MARGIN},bottom=${GLOBAL_MARGIN},right=${GLOBAL_MARGIN}]`,
+            'elk.alignment': 'CENTER',
+            'elk.contentAlignment': 'H_CENTER V_TOP'
         },
         children: [],
         labels: [{ text: group.path[group.path.length - 1] }]
@@ -1284,7 +1713,7 @@ function buildElkGroup(
 
     const childGroups = group.childGroups.map(id => allGroups.get(id)!).filter(Boolean);
     childGroups.sort((a, b) => a.id.localeCompare(b.id));
-    
+
     childGroups.forEach(childGroup => {
         const elkChild = buildElkGroup(childGroup, allGroups, nodeWidths);
         elkGroup.children!.push(elkChild);
@@ -1318,11 +1747,11 @@ function elkToSvelteFlow(
 
         elkNode.children.forEach(child => {
             const isGroup = child.id.startsWith('group-');
-            
+
             if (isGroup) {
                 const groupId = child.id.replace('group-', '');
                 const group = groups.get(groupId);
-                
+
                 nodes.push({
                     id: child.id,
                     type: 'group',
@@ -1340,7 +1769,7 @@ function elkToSvelteFlow(
                 const process = processMap.get(child.id);
                 if (process) {
                     const groupPath = extractGroup(process.name);
-                    
+
                     nodes.push({
                         id: child.id,
                         type: 'process',
@@ -1364,7 +1793,7 @@ function elkToSvelteFlow(
         process.upstream_processes.forEach(upstream => {
             const sourceStatus = processMap.get(upstream)?.status || 'NOTSTARTED';
             const targetStatus = process.status;
-            
+
             edges.push({
                 id: `${upstream}->${process.name}`,
                 source: upstream,
@@ -1384,17 +1813,17 @@ function elkToSvelteFlow(
  */
 function buildGroupHierarchy(processes: Process[]): Map<string, GroupInfo> {
     const groups = new Map<string, GroupInfo>();
-    
+
     processes.forEach(process => {
         const parts = process.name.split('.');
         if (parts.length <= 1) return;
-        
+
         for (let i = 1; i < parts.length; i++) {
             const groupPath = parts.slice(0, i);
             const groupId = groupPath.join('.');
             const parentPath = groupPath.slice(0, -1);
             const parentId = parentPath.length > 0 ? parentPath.join('.') : undefined;
-            
+
             if (!groups.has(groupId)) {
                 groups.set(groupId, {
                     id: groupId,
@@ -1404,7 +1833,7 @@ function buildGroupHierarchy(processes: Process[]): Map<string, GroupInfo> {
                     parentId
                 });
             }
-            
+
             if (parentId && groups.has(parentId)) {
                 const parentGroup = groups.get(parentId)!;
                 if (!parentGroup.childGroups.includes(groupId)) {
@@ -1412,14 +1841,14 @@ function buildGroupHierarchy(processes: Process[]): Map<string, GroupInfo> {
                 }
             }
         }
-        
+
         const processGroupPath = parts.slice(0, -1);
         const processGroupId = processGroupPath.join('.');
         if (groups.has(processGroupId)) {
             groups.get(processGroupId)!.processes.push(process.name);
         }
     });
-    
+
     groups.forEach(group => {
         if (group.parentId && groups.has(group.parentId)) {
             const parent = groups.get(group.parentId)!;
@@ -1428,7 +1857,7 @@ function buildGroupHierarchy(processes: Process[]): Map<string, GroupInfo> {
             }
         }
     });
-    
+
     return groups;
 }
 

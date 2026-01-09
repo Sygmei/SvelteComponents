@@ -129,9 +129,13 @@
             fill="currentColor"
             viewBox="0 0 20 20"
         >
-            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+            <path
+                fill-rule="evenodd"
+                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                clip-rule="evenodd"
+            />
         </svg>
-        
+
         <!-- Folder icon -->
         <svg
             class="h-5 w-5 {colors.text} flex-shrink-0"
@@ -142,19 +146,19 @@
                 d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"
             />
         </svg>
-        
+
         <!-- Label -->
         <span class="font-semibold text-sm {colors.text} truncate">
             {data.label}
         </span>
-        
+
         <!-- Input handle (top) -->
         <Handle
             type="target"
             position={Position.Top}
             class="!w-3 !h-3 !border-2 !border-white/50 !rounded-full {colors.handleBg}"
         />
-        
+
         <!-- Output handle (bottom) -->
         <Handle
             type="source"
@@ -179,7 +183,11 @@
                 fill="currentColor"
                 viewBox="0 0 20 20"
             >
-                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                <path
+                    fill-rule="evenodd"
+                    d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                    clip-rule="evenodd"
+                />
             </svg>
             <svg
                 class="h-4 w-4 {colors.text}"

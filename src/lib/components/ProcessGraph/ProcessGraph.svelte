@@ -13,7 +13,11 @@
     import ProcessNode from "./ProcessNode.svelte";
     import GroupNode from "./GroupNode.svelte";
     import ElkEdge from "./ElkEdge.svelte";
-    import { processesToFlow, processesToFlowAsync, getProcessStats } from "./graphUtils";
+    import {
+        processesToFlow,
+        processesToFlowAsync,
+        getProcessStats,
+    } from "./graphUtils";
     import type { ProcessGraphData } from "./types";
     import { onMount } from "svelte";
 
@@ -43,30 +47,32 @@
     };
 
     // Use sync layout as initial fallback, then update with ELK async
-    let { nodes: initialNodes, edges: initialEdges } = $derived(processesToFlow(data.processes));
+    let { nodes: initialNodes, edges: initialEdges } = $derived(
+        processesToFlow(data.processes),
+    );
     let stats = $derived(getProcessStats(data.processes));
 
     // Theme detection
     let isDark = $state(true);
     let isInitialLayoutReady = $state(false);
-    
+
     // Track collapsed groups
     let collapsedGroups = $state<Set<string>>(new Set());
-    
+
     // Hide skipped processes
     let hideSkipped = $state(false);
-    
+
     // Layout version to force re-layout when collapse state changes
     let layoutVersion = $state(0);
-    
+
     onMount(() => {
-        isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
         const handler = (e: MediaQueryListEvent) => {
             isDark = e.matches;
         };
-        mediaQuery.addEventListener('change', handler);
-        return () => mediaQuery.removeEventListener('change', handler);
+        mediaQuery.addEventListener("change", handler);
+        return () => mediaQuery.removeEventListener("change", handler);
     });
 
     // Handle group collapse toggle
@@ -91,28 +97,35 @@
         const collapsed = collapsedGroups;
         const _version = layoutVersion; // Track for reactivity
         const _hideSkipped = hideSkipped; // Track for reactivity
-        
+
         // Filter skipped processes if enabled, with edge bridging
         let processes = allProcesses;
         if (_hideSkipped) {
-            const processMap = new Map(allProcesses.map(p => [p.name, p]));
+            const processMap = new Map(allProcesses.map((p) => [p.name, p]));
             const skippedNames = new Set(
-                allProcesses.filter(p => p.status === 'SKIPPED').map(p => p.name)
+                allProcesses
+                    .filter((p) => p.status === "SKIPPED")
+                    .map((p) => p.name),
             );
-            
+
             // Find all non-skipped ancestors of a process (bridging through skipped ones)
-            function getNonSkippedUpstreams(processName: string, visited = new Set<string>()): string[] {
+            function getNonSkippedUpstreams(
+                processName: string,
+                visited = new Set<string>(),
+            ): string[] {
                 if (visited.has(processName)) return [];
                 visited.add(processName);
-                
+
                 const process = processMap.get(processName);
                 if (!process) return [];
-                
+
                 const result: string[] = [];
                 for (const upstream of process.upstream_processes) {
                     if (skippedNames.has(upstream)) {
                         // Bridge through skipped process - get its upstreams
-                        result.push(...getNonSkippedUpstreams(upstream, visited));
+                        result.push(
+                            ...getNonSkippedUpstreams(upstream, visited),
+                        );
                     } else {
                         // Non-skipped upstream - keep it
                         result.push(upstream);
@@ -120,54 +133,56 @@
                 }
                 return [...new Set(result)]; // Deduplicate
             }
-            
+
             // Filter processes and rewire upstream references
             processes = allProcesses
-                .filter(p => p.status !== 'SKIPPED')
-                .map(p => ({
+                .filter((p) => p.status !== "SKIPPED")
+                .map((p) => ({
                     ...p,
-                    upstream_processes: getNonSkippedUpstreams(p.name)
+                    upstream_processes: getNonSkippedUpstreams(p.name),
                 }));
         }
-        
+
         // Run async ELK layout with collapsed groups
-        processesToFlowAsync(processes, collapsed).then(({ nodes, edges }) => {
-            // Add collapse callback to group nodes
-            flowNodes = nodes.map(node => {
-                if (node.type === 'group') {
-                    return {
-                        ...node,
-                        draggable: false,
-                        data: {
-                            ...node.data,
-                            collapsed: collapsed.has(node.id),
-                            onToggleCollapse: handleToggleCollapse
-                        }
-                    };
-                }
-                return { ...node, draggable: false };
+        processesToFlowAsync(processes, collapsed)
+            .then(({ nodes, edges }) => {
+                // Add collapse callback to group nodes
+                flowNodes = nodes.map((node) => {
+                    if (node.type === "group") {
+                        return {
+                            ...node,
+                            draggable: false,
+                            data: {
+                                ...node.data,
+                                collapsed: collapsed.has(node.id),
+                                onToggleCollapse: handleToggleCollapse,
+                            },
+                        };
+                    }
+                    return { ...node, draggable: false };
+                });
+                flowEdges = edges;
+                isInitialLayoutReady = true;
+            })
+            .catch(() => {
+                // Fallback to sync layout if ELK fails
+                flowNodes = initialNodes.map((node) => {
+                    if (node.type === "group") {
+                        return {
+                            ...node,
+                            draggable: false,
+                            data: {
+                                ...node.data,
+                                collapsed: collapsed.has(node.id),
+                                onToggleCollapse: handleToggleCollapse,
+                            },
+                        };
+                    }
+                    return { ...node, draggable: false };
+                });
+                flowEdges = initialEdges;
+                isInitialLayoutReady = true;
             });
-            flowEdges = edges;
-            isInitialLayoutReady = true;
-        }).catch(() => {
-            // Fallback to sync layout if ELK fails
-            flowNodes = initialNodes.map(node => {
-                if (node.type === 'group') {
-                    return {
-                        ...node,
-                        draggable: false,
-                        data: {
-                            ...node.data,
-                            collapsed: collapsed.has(node.id),
-                            onToggleCollapse: handleToggleCollapse
-                        }
-                    };
-                }
-                return { ...node, draggable: false };
-            });
-            flowEdges = initialEdges;
-            isInitialLayoutReady = true;
-        });
     });
 
     function getMiniMapNodeColor(node: Node): string {
@@ -185,15 +200,27 @@
 </script>
 
 <div
-    class="process-graph-container relative h-full w-full overflow-hidden rounded-2xl border transition-colors duration-300 bg-gradient-to-br {isDark ? 'from-slate-900 via-slate-800 to-slate-900 border-white/10' : 'from-slate-100 via-white to-slate-100 border-slate-200'}"
-    data-theme={isDark ? 'dark' : 'light'}
+    class="process-graph-container relative h-full w-full overflow-hidden rounded-2xl border transition-colors duration-300 bg-gradient-to-br {isDark
+        ? 'from-slate-900 via-slate-800 to-slate-900 border-white/10'
+        : 'from-slate-100 via-white to-slate-100 border-slate-200'}"
+    data-theme={isDark ? "dark" : "light"}
 >
     <!-- Loading Indicator (only show on initial load) -->
     {#if !isInitialLayoutReady}
-        <div class="absolute inset-0 z-20 flex items-center justify-center backdrop-blur-sm {isDark ? 'bg-slate-900/50' : 'bg-white/50'}">
+        <div
+            class="absolute inset-0 z-20 flex items-center justify-center backdrop-blur-sm {isDark
+                ? 'bg-slate-900/50'
+                : 'bg-white/50'}"
+        >
             <div class="flex flex-col items-center gap-3">
-                <div class="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
-                <span class="text-sm font-medium {isDark ? 'text-white' : 'text-slate-700'}">Computing layout...</span>
+                <div
+                    class="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"
+                ></div>
+                <span
+                    class="text-sm font-medium {isDark
+                        ? 'text-white'
+                        : 'text-slate-700'}">Computing layout...</span
+                >
             </div>
         </div>
     {/if}
@@ -202,51 +229,103 @@
     {#if showStats}
         <div class="absolute left-4 top-4 z-10">
             <div
-                class="stats-card backdrop-blur-sm border rounded-xl px-4 py-3 shadow-xl transition-colors duration-300 {isDark ? 'bg-slate-800/80 border-white/10' : 'bg-white/80 border-slate-200'}"
+                class="stats-card backdrop-blur-sm border rounded-xl px-4 py-3 shadow-xl transition-colors duration-300 {isDark
+                    ? 'bg-slate-800/80 border-white/10'
+                    : 'bg-white/80 border-slate-200'}"
             >
                 <div class="flex flex-col gap-2 text-sm">
                     <div class="flex items-center gap-2">
-                        <span class="font-semibold {isDark ? 'text-white' : 'text-slate-900'}">{stats.total}</span>
-                        <span class={isDark ? 'text-slate-400' : 'text-slate-500'}>Total</span>
-                    </div>
-                    <div class="h-px w-full {isDark ? 'bg-white/20' : 'bg-slate-300'}"></div>
-                    <div class="flex items-center gap-1.5">
-                        <span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
-                        <span class="text-emerald-500 font-medium w-6">{stats.success}</span>
-                        <span class={isDark ? 'text-slate-400' : 'text-slate-500'}>Success</span>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <span class="h-2.5 w-2.5 rounded-full bg-slate-500"></span>
-                        <span class="text-slate-500 font-medium w-6">{stats.skipped}</span>
-                        <span class={isDark ? 'text-slate-400' : 'text-slate-500'}>Skipped</span>
-                        <button 
-                            onclick={() => hideSkipped = !hideSkipped}
-                            class="ml-auto px-2 py-0.5 rounded text-xs transition-colors {hideSkipped 
-                                ? 'bg-slate-500 text-white' 
-                                : isDark ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}"
+                        <span
+                            class="font-semibold {isDark
+                                ? 'text-white'
+                                : 'text-slate-900'}">{stats.total}</span
                         >
-                            {hideSkipped ? 'Show' : 'Hide'}
+                        <span
+                            class={isDark ? "text-slate-400" : "text-slate-500"}
+                            >Total</span
+                        >
+                    </div>
+                    <div
+                        class="h-px w-full {isDark
+                            ? 'bg-white/20'
+                            : 'bg-slate-300'}"
+                    ></div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="h-2.5 w-2.5 rounded-full bg-emerald-500"
+                        ></span>
+                        <span class="text-emerald-500 font-medium w-6"
+                            >{stats.success}</span
+                        >
+                        <span
+                            class={isDark ? "text-slate-400" : "text-slate-500"}
+                            >Success</span
+                        >
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="h-2.5 w-2.5 rounded-full bg-slate-500"
+                        ></span>
+                        <span class="text-slate-500 font-medium w-6"
+                            >{stats.skipped}</span
+                        >
+                        <span
+                            class={isDark ? "text-slate-400" : "text-slate-500"}
+                            >Skipped</span
+                        >
+                        <button
+                            onclick={() => (hideSkipped = !hideSkipped)}
+                            class="ml-auto px-2 py-0.5 rounded text-xs transition-colors {hideSkipped
+                                ? 'bg-slate-500 text-white'
+                                : isDark
+                                  ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                  : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}"
+                        >
+                            {hideSkipped ? "Show" : "Hide"}
                         </button>
                     </div>
                     <div class="flex items-center gap-1.5">
-                        <span class="h-2.5 w-2.5 rounded-full bg-red-500"></span>
-                        <span class="text-red-500 font-medium w-6">{stats.failed}</span>
-                        <span class={isDark ? 'text-slate-400' : 'text-slate-500'}>Failed</span>
+                        <span class="h-2.5 w-2.5 rounded-full bg-red-500"
+                        ></span>
+                        <span class="text-red-500 font-medium w-6"
+                            >{stats.failed}</span
+                        >
+                        <span
+                            class={isDark ? "text-slate-400" : "text-slate-500"}
+                            >Failed</span
+                        >
                     </div>
                     <div class="flex items-center gap-1.5">
-                        <span class="h-2.5 w-2.5 rounded-full bg-blue-500 animate-pulse"></span>
-                        <span class="text-blue-500 font-medium w-6">{stats.inprogress}</span>
-                        <span class={isDark ? 'text-slate-400' : 'text-slate-500'}>In Progress</span>
+                        <span
+                            class="h-2.5 w-2.5 rounded-full bg-blue-500 animate-pulse"
+                        ></span>
+                        <span class="text-blue-500 font-medium w-6"
+                            >{stats.inprogress}</span
+                        >
+                        <span
+                            class={isDark ? "text-slate-400" : "text-slate-500"}
+                            >In Progress</span
+                        >
                     </div>
                     <div class="flex items-center gap-1.5">
-                        <span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span>
-                        <span class="text-amber-500 font-medium w-6">{stats.notstarted}</span>
-                        <span class={isDark ? 'text-slate-400' : 'text-slate-500'}>Not Started</span>
+                        <span class="h-2.5 w-2.5 rounded-full bg-amber-500"
+                        ></span>
+                        <span class="text-amber-500 font-medium w-6"
+                            >{stats.notstarted}</span
+                        >
+                        <span
+                            class={isDark ? "text-slate-400" : "text-slate-500"}
+                            >Not Started</span
+                        >
                     </div>
                     <div class="flex items-center gap-1.5">
-                        <span class="h-2.5 w-2.5 rounded-full bg-violet-500"></span>
-                        <span class="text-violet-500 font-medium w-6">{stats.rollbacked}</span>
-                        <span class={isDark ? 'text-slate-400' : 'text-slate-500'}>Rollbacked</span>
+                        <span class="h-2.5 w-2.5 rounded-full bg-violet-500"
+                        ></span>
+                        <span class="text-violet-500 font-medium w-6"
+                            >{stats.rollbacked}</span
+                        >
+                        <span
+                            class={isDark ? "text-slate-400" : "text-slate-500"}
+                            >Rollbacked</span
+                        >
                     </div>
                 </div>
             </div>
@@ -256,7 +335,9 @@
     <!-- Title Badge -->
     <div class="absolute right-4 top-4 z-10">
         <div
-            class="flex items-center gap-2 rounded-xl backdrop-blur-sm border px-4 py-2 shadow-xl transition-colors duration-300 {isDark ? 'bg-slate-800/80 border-white/10' : 'bg-white/80 border-slate-200'}"
+            class="flex items-center gap-2 rounded-xl backdrop-blur-sm border px-4 py-2 shadow-xl transition-colors duration-300 {isDark
+                ? 'bg-slate-800/80 border-white/10'
+                : 'bg-white/80 border-slate-200'}"
         >
             <svg
                 class="h-5 w-5 text-indigo-500"
@@ -271,7 +352,10 @@
                     d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"
                 />
             </svg>
-            <span class="font-semibold {isDark ? 'text-white' : 'text-slate-900'}">Process Graph</span>
+            <span
+                class="font-semibold {isDark ? 'text-white' : 'text-slate-900'}"
+                >Process Graph</span
+            >
         </div>
     </div>
 
@@ -302,10 +386,9 @@
 
         {#if showControls}
             <Controls
-                class={isDark 
+                class={isDark
                     ? "!bg-slate-800/80 !border-white/10 !rounded-xl !shadow-xl [&>button]:!bg-slate-700 [&>button]:!border-white/10 [&>button]:!text-white [&>button:hover]:!bg-slate-600"
-                    : "!bg-white/80 !border-slate-200 !rounded-xl !shadow-xl [&>button]:!bg-slate-100 [&>button]:!border-slate-200 [&>button]:!text-slate-700 [&>button:hover]:!bg-slate-200"
-                }
+                    : "!bg-white/80 !border-slate-200 !rounded-xl !shadow-xl [&>button]:!bg-slate-100 [&>button]:!border-slate-200 [&>button]:!text-slate-700 [&>button:hover]:!bg-slate-200"}
                 showLock={false}
             />
         {/if}
@@ -313,22 +396,31 @@
         {#if showMiniMap}
             <MiniMap
                 nodeColor={getMiniMapNodeColor}
-                maskColor={isDark ? "rgba(15, 23, 42, 0.8)" : "rgba(241, 245, 249, 0.8)"}
+                maskColor={isDark
+                    ? "rgba(15, 23, 42, 0.8)"
+                    : "rgba(241, 245, 249, 0.8)"}
                 class={isDark
                     ? "!bg-slate-800/80 !border-white/10 !rounded-xl !shadow-xl"
-                    : "!bg-white/80 !border-slate-200 !rounded-xl !shadow-xl"
-                }
+                    : "!bg-white/80 !border-slate-200 !rounded-xl !shadow-xl"}
             />
         {/if}
     </SvelteFlow>
 
     <!-- Gradient overlays for depth -->
     {#if isDark}
-        <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-900/50 via-transparent to-transparent"></div>
-        <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-slate-900/30 via-transparent to-transparent"></div>
+        <div
+            class="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-900/50 via-transparent to-transparent"
+        ></div>
+        <div
+            class="pointer-events-none absolute inset-0 bg-gradient-to-b from-slate-900/30 via-transparent to-transparent"
+        ></div>
     {:else}
-        <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-200/30 via-transparent to-transparent"></div>
-        <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-slate-100/20 via-transparent to-transparent"></div>
+        <div
+            class="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-200/30 via-transparent to-transparent"
+        ></div>
+        <div
+            class="pointer-events-none absolute inset-0 bg-gradient-to-b from-slate-100/20 via-transparent to-transparent"
+        ></div>
     {/if}
 </div>
 
