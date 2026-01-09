@@ -49,6 +49,17 @@
         };
     }
 
+    function getLabelPosition(index: number, innerRadius: number, outerRadius: number, offset: number): { x: number; y: number } {
+        // Calculate position along the radial line from inner to outer, plus offset
+        const midAngle = -90 + (index * segmentAngle) + (segmentAngle / 2);
+        const rad = (midAngle * Math.PI) / 180;
+        const labelRadius = outerRadius + offset;
+        return {
+            x: Math.cos(rad) * labelRadius,
+            y: Math.sin(rad) * labelRadius
+        };
+    }
+
     function handleAction(actionId: string, event: MouseEvent) {
         event.stopPropagation();
         onAction(actionId);
@@ -106,6 +117,7 @@
                 {@const outerRadius = menuRadius + 20}
                 {@const path = getSegmentPath(index, innerRadius, outerRadius)}
                 {@const center = getSegmentCenter(index, (innerRadius + outerRadius) / 2)}
+                {@const labelPos = getLabelPosition(index, innerRadius, outerRadius, 15)}
 
                 <g
                     class="segment-group pointer-events-auto cursor-pointer"
@@ -141,8 +153,8 @@
                     </text>
                     <!-- Label (appears on hover) -->
                     <text
-                        x={center.x + 35}
-                        y={center.y}
+                        x={labelPos.x}
+                        y={labelPos.y}
                         text-anchor="start"
                         dominant-baseline="central"
                         class="segment-label fill-white text-xs font-semibold opacity-0 transition-opacity duration-200 pointer-events-none select-none"
