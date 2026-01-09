@@ -35,13 +35,26 @@ export interface GroupPort {
 }
 export const groupPortsStore = writable<Map<string, GroupPort>>(new Map());
 
-// Store for edge confluence points - used to align edges branching from or joining to the same node
-// Key: nodeId, Value: { branchY: Y position where outgoing edges should branch, joinY: Y position where incoming edges should join }
-export interface ConfluencePoints {
-    branchY?: number;  // Y position where edges leaving this node should branch out
-    joinY?: number;    // Y position where edges entering this node should join
+// Store for edge confluence points - edges going to the same target merge at these points
+export interface EdgeConfluence {
+    targetId: string;
+    confluenceX: number;
+    confluenceY: number;
+    sourceIds: string[];
 }
-export const confluencePointsStore = writable<Map<string, ConfluencePoints>>(new Map());
+export const edgeConfluenceStore = writable<Map<string, EdgeConfluence>>(new Map());
+
+// Store for all edge endpoint info - used for calculating confluence points
+export interface EdgeEndpoints {
+    id: string;
+    source: string;
+    target: string;
+    sourceX: number;
+    sourceY: number;
+    targetX: number;
+    targetY: number;
+}
+export const allEdgesStore = writable<EdgeEndpoints[]>([]);
 
 /**
  * Find the common ancestor group of two groups (or 'root' if none)
@@ -1492,134 +1505,6 @@ function unifiedElkToSvelteFlow(
     }
 
     extractEdgesFromElk(elkGraph);
-
-    // Calculate confluence points for edges that branch from or join to the same node
-    // This ensures edges from the same source branch at the same Y, and edges to the same target join at the same Y
-    const confluencePoints = new Map<string, ConfluencePoints>();
-    
-    // Helper to get the effective exit Y for a node going to a specific target
-    // This considers which groups the edge needs to exit (only groups NOT containing the target)
-    function getEffectiveExitY(sourceId: string, targetId: string): number {
-        const sourcePos = absolutePositions.get(sourceId);
-        if (!sourcePos) return 0;
-        
-        const sourceGroup = extractGroup(sourceId);
-        const targetGroup = extractGroup(targetId);
-        
-        // Base exit Y is bottom of source node + margin
-        let maxExitY = sourcePos.y + sourcePos.height + GLOBAL_MARGIN;
-        
-        if (sourceGroup === 'root') {
-            // Source not in any group - no group exit needed
-            return maxExitY;
-        }
-        
-        // Find which groups source needs to exit to reach target
-        // Source needs to exit groups that don't contain the target
-        const sourceParts = sourceGroup.split('.');
-        const targetParts = targetGroup === 'root' ? [] : targetGroup.split('.');
-        
-        // Find common prefix length
-        let commonPrefixLen = 0;
-        for (let i = 0; i < Math.min(sourceParts.length, targetParts.length); i++) {
-            if (sourceParts[i] === targetParts[i]) {
-                commonPrefixLen = i + 1;
-            } else {
-                break;
-            }
-        }
-        
-        // Source needs to exit groups from its innermost down to (but not including) the common ancestor
-        // For example, if source is in "prod_validation.validate_jsonschema" and target is in "prod_validation",
-        // source needs to exit "prod_validation.validate_jsonschema" but NOT "prod_validation"
-        for (let i = sourceParts.length; i > commonPrefixLen; i--) {
-            const groupId = `group-${sourceParts.slice(0, i).join('.')}`;
-            const groupPos = absolutePositions.get(groupId);
-            if (groupPos) {
-                const groupExitY = groupPos.y + groupPos.height + GLOBAL_MARGIN;
-                maxExitY = Math.max(maxExitY, groupExitY);
-            }
-        }
-        
-        return maxExitY;
-    }
-    
-    // Group edges by source and target
-    const edgesBySource = new Map<string, Array<{ target: string; targetY: number; targetHeight: number }>>();
-    const edgesByTarget = new Map<string, Array<{ source: string; sourceY: number; sourceHeight: number; effectiveExitY: number }>>();
-    
-    edges.forEach(edge => {
-        const sourcePos = absolutePositions.get(edge.source);
-        const targetPos = absolutePositions.get(edge.target);
-        
-        if (sourcePos && targetPos) {
-            // Group by source
-            if (!edgesBySource.has(edge.source)) {
-                edgesBySource.set(edge.source, []);
-            }
-            edgesBySource.get(edge.source)!.push({
-                target: edge.target,
-                targetY: targetPos.y,
-                targetHeight: targetPos.height
-            });
-            
-            // Group by target - also compute effective exit Y for the source (relative to this target)
-            if (!edgesByTarget.has(edge.target)) {
-                edgesByTarget.set(edge.target, []);
-            }
-            edgesByTarget.get(edge.target)!.push({
-                source: edge.source,
-                sourceY: sourcePos.y,
-                sourceHeight: sourcePos.height,
-                effectiveExitY: getEffectiveExitY(edge.source, edge.target)
-            });
-        }
-    });
-    
-    // Calculate branch points for nodes with multiple outgoing edges
-    edgesBySource.forEach((targets, sourceId) => {
-        if (targets.length > 1) {
-            const sourcePos = absolutePositions.get(sourceId);
-            if (sourcePos) {
-                // Branch point should be at a consistent Y below the source
-                // Use the source bottom + GLOBAL_MARGIN as the branch point
-                const branchY = sourcePos.y + sourcePos.height + GLOBAL_MARGIN;
-                
-                if (!confluencePoints.has(sourceId)) {
-                    confluencePoints.set(sourceId, {});
-                }
-                confluencePoints.get(sourceId)!.branchY = branchY;
-            }
-        }
-    });
-    
-    // Calculate join points for nodes with multiple incoming edges
-    edgesByTarget.forEach((sources, targetId) => {
-        if (sources.length > 1) {
-            const targetPos = absolutePositions.get(targetId);
-            if (targetPos) {
-                // Join point should be at a consistent Y above the target
-                // BUT it must be BELOW the maximum effective exit Y of all source nodes
-                // This ensures edges that exit groups can still reach the join point
-                const maxEffectiveExitY = Math.max(...sources.map(s => s.effectiveExitY));
-                
-                // Join Y is the max of: (target top - margin) and (max exit Y + small gap)
-                const idealJoinY = targetPos.y - GLOBAL_MARGIN;
-                const joinY = Math.max(idealJoinY, maxEffectiveExitY + 10);
-                
-                // Only set joinY if it's still above the target
-                if (joinY < targetPos.y) {
-                    if (!confluencePoints.has(targetId)) {
-                        confluencePoints.set(targetId, {});
-                    }
-                    confluencePoints.get(targetId)!.joinY = joinY;
-                }
-            }
-        }
-    });
-    
-    // Update the confluence points store
-    confluencePointsStore.set(confluencePoints);
 
     return { nodes, edges };
 }
