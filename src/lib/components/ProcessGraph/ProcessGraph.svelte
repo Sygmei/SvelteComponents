@@ -13,6 +13,7 @@
     import ProcessNode from "./ProcessNode.svelte";
     import GroupNode from "./GroupNode.svelte";
     import ElkEdge from "./ElkEdge.svelte";
+    import FitViewOnChange from "./FitViewOnChange.svelte";
     import {
         processesToFlow,
         processesToFlowAsync,
@@ -455,6 +456,9 @@
                     : "!bg-white/80 !border-slate-200 !rounded-xl !shadow-xl"}
             />
         {/if}
+
+        <!-- Auto fit view when hideSkipped changes -->
+        <FitViewOnChange trigger={hideSkipped} />
     </SvelteFlow>
 
     <!-- Gradient overlays for depth -->
