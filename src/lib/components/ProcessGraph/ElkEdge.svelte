@@ -192,10 +192,32 @@
             });
 
             if (siblingGroups.length > 0) {
-                // There's a sibling group in the way - turn above it
-                const firstSibling = siblingGroups.sort((a, b) => a.y - b.y)[0];
-                turnY = firstSibling.y - MARGIN;
-                turnY = Math.max(turnY, sourceY + 20);
+                // Check if we can go straight down (sourceX is in a gap between groups)
+                // We can go straight if sourceX is not within MARGIN of any sibling group
+                const canGoStraight = siblingGroups.every((box) => {
+                    const boxLeftWithMargin = box.x - MARGIN;
+                    const boxRightWithMargin = box.x + box.width + MARGIN;
+                    // sourceX must be outside this box's X range (with margin)
+                    return sourceX <= boxLeftWithMargin || sourceX >= boxRightWithMargin;
+                });
+
+                // Also check if targetX can be reached straight
+                const canReachTargetStraight = siblingGroups.every((box) => {
+                    const boxLeftWithMargin = box.x - MARGIN;
+                    const boxRightWithMargin = box.x + box.width + MARGIN;
+                    return targetX <= boxLeftWithMargin || targetX >= boxRightWithMargin;
+                });
+
+                if (canGoStraight && canReachTargetStraight && Math.abs(sourceX - targetX) < MARGIN) {
+                    // We can go straight down - no need to turn around sibling groups
+                    // Just use a simple turn near the source
+                    turnY = sourceY + 20;
+                } else {
+                    // There's a sibling group blocking the path - turn above it
+                    const firstSibling = siblingGroups.sort((a, b) => a.y - b.y)[0];
+                    turnY = firstSibling.y - MARGIN;
+                    turnY = Math.max(turnY, sourceY + 20);
+                }
             } else {
                 // No obstacles - simple turn at a good distance from source
                 turnY = sourceY + 30;
@@ -242,6 +264,33 @@
             return true;
         });
 
+        // Check if a point is in a valid gap between groups (not inside any group's bounding box)
+        function isInValidGap(x: number, relevantBoxes: GroupBox[]): boolean {
+            for (const box of relevantBoxes) {
+                // Point is inside the box (without margin - the actual box boundary)
+                if (x > box.x && x < box.x + box.width) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // Check if we can draw a straight vertical line from source to target
+        // This is possible if both sourceX and targetX are in valid gaps between sibling groups
+        const canGoStraightVertical = (() => {
+            if (Math.abs(sourceX - targetX) > 1) return false; // X positions must be almost the same
+            
+            // Find boxes that are in our Y range
+            const boxesInYRange = boxesToAvoid.filter((box) => {
+                const boxTop = box.y;
+                const boxBottom = box.y + box.height;
+                return boxBottom > sourceY && boxTop < targetY;
+            });
+            
+            // Check if sourceX is in a valid gap (not inside any box)
+            return isInValidGap(sourceX, boxesInYRange);
+        })();
+
         // Check if a smoothstep path (down, across, down) intersects any boxes
         // Use effective source position (after exit port waypoints) for intersection checks
         function pathIntersectsBox(turnY: number, box: GroupBox): boolean {
@@ -272,6 +321,12 @@
             }
 
             return false;
+        }
+
+        // If we can go straight vertical, just do it (no avoidance needed)
+        if (canGoStraightVertical) {
+            waypoints.push({ x: sourceX, y: targetY });
+            return buildPathFromWaypoints(waypoints);
         }
 
         // Find boxes that the simple path would intersect
