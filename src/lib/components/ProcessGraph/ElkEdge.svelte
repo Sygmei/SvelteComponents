@@ -113,9 +113,45 @@
         const waypoints: Array<{ x: number; y: number }> = [];
         waypoints.push({ x: sourceX, y: sourceY });
 
+        // Add exit port waypoints for groups we're leaving
+        // This ensures the edge visually exits through the group's exit port
+        if (exitGroups.length > 0) {
+            // For each exit group, add waypoints to route through its exit port
+            for (const exitGroupId of exitGroups) {
+                const exitPortKey = `${exitGroupId}-exit`;
+                const exitPort = ports.get(exitPortKey);
+                const exitBox = boxMap.get(exitGroupId);
+                
+                if (exitPort && exitBox) {
+                    // First, go down to just above the exit port (align with bottom of group)
+                    const preExitY = exitBox.y + exitBox.height - TURN_CLEARANCE / 2;
+                    const lastWaypoint = waypoints[waypoints.length - 1];
+                    
+                    // Only add preExitY waypoint if we need to move down
+                    if (preExitY > lastWaypoint.y) {
+                        // Go down on current X
+                        waypoints.push({ x: lastWaypoint.x, y: preExitY });
+                        // Only add horizontal waypoint if exit port X is different
+                        if (Math.abs(exitPort.x - lastWaypoint.x) > 1) {
+                            waypoints.push({ x: exitPort.x, y: preExitY });
+                        }
+                    }
+                    
+                    // Then go through the exit port (only if different from last waypoint)
+                    const currentLast = waypoints[waypoints.length - 1];
+                    if (Math.abs(exitPort.x - currentLast.x) > 1 || Math.abs(exitPort.y - currentLast.y) > 1) {
+                        waypoints.push({ x: exitPort.x, y: exitPort.y });
+                    }
+                }
+            }
+        }
+
         // Calculate intermediate turn point
         // If we're crossing groups, we need careful placement of the turn
         let turnY: number;
+        const lastExitWaypoint = waypoints[waypoints.length - 1];
+        const effectiveSourceY = lastExitWaypoint.y;
+        const effectiveSourceX = lastExitWaypoint.x;
 
         if (entryGroups.length > 0) {
             // We're entering groups - place turn well above the first group to enter
@@ -124,24 +160,19 @@
             if (entryBox) {
                 // Turn should be TURN_CLEARANCE above the group
                 turnY = entryBox.y - TURN_CLEARANCE;
-                // But not above the source
-                turnY = Math.max(turnY, sourceY + 20);
+                // But not above the effective source (after exit waypoints)
+                turnY = Math.max(turnY, effectiveSourceY + 20);
             } else {
-                turnY = (sourceY + targetY) / 2;
+                turnY = (effectiveSourceY + targetY) / 2;
             }
         } else if (exitGroups.length > 0) {
             // We're exiting groups but not entering any new ones
-            // Turn should be after we've exited
-            const lastExitGroup = exitGroups[exitGroups.length - 1];
-            const exitBox = boxMap.get(lastExitGroup);
-            if (exitBox) {
-                // Turn should be TURN_CLEARANCE below the group we're exiting
-                turnY = exitBox.y + exitBox.height + TURN_CLEARANCE;
-                // But not below the target
-                turnY = Math.min(turnY, targetY - 20);
-            } else {
-                turnY = (sourceY + targetY) / 2;
-            }
+            // Since we've already added exit port waypoints, the turn should be
+            // right after the last exit port (which is already in effectiveSourceY)
+            // Just add a small offset to create a proper turn
+            turnY = effectiveSourceY + TURN_CLEARANCE;
+            // But not below the target
+            turnY = Math.min(turnY, targetY - 20);
         } else if (commonAncestor) {
             // Both in the same group hierarchy - check if we need to go around sibling groups
             const ancestorBox = boxMap.get(commonAncestor);
@@ -212,23 +243,24 @@
         });
 
         // Check if a smoothstep path (down, across, down) intersects any boxes
+        // Use effective source position (after exit port waypoints) for intersection checks
         function pathIntersectsBox(turnY: number, box: GroupBox): boolean {
             const boxLeft = box.x - TURN_CLEARANCE;
             const boxRight = box.x + box.width + TURN_CLEARANCE;
             const boxTop = box.y - TURN_CLEARANCE;
             const boxBottom = box.y + box.height + TURN_CLEARANCE;
 
-            // Check vertical segment 1: sourceX, sourceY -> sourceX, turnY
-            if (sourceX > boxLeft && sourceX < boxRight) {
-                const segTop = Math.min(sourceY, turnY);
-                const segBottom = Math.max(sourceY, turnY);
+            // Check vertical segment 1: effectiveSourceX, effectiveSourceY -> effectiveSourceX, turnY
+            if (effectiveSourceX > boxLeft && effectiveSourceX < boxRight) {
+                const segTop = Math.min(effectiveSourceY, turnY);
+                const segBottom = Math.max(effectiveSourceY, turnY);
                 if (segBottom > boxTop && segTop < boxBottom) return true;
             }
 
-            // Check horizontal segment: sourceX, turnY -> targetX, turnY
+            // Check horizontal segment: effectiveSourceX, turnY -> targetX, turnY
             if (turnY > boxTop && turnY < boxBottom) {
-                const segLeft = Math.min(sourceX, targetX);
-                const segRight = Math.max(sourceX, targetX);
+                const segLeft = Math.min(effectiveSourceX, targetX);
+                const segRight = Math.max(effectiveSourceX, targetX);
                 if (segRight > boxLeft && segLeft < boxRight) return true;
             }
 
@@ -249,18 +281,26 @@
 
         if (intersectingBoxes.length > 0) {
             // Need to route around boxes
+            // If we have exit waypoints, start avoidance from the last waypoint position
             return buildAvoidancePath(
-                sourceX,
-                sourceY,
+                effectiveSourceX,
+                effectiveSourceY,
                 targetX,
                 targetY,
                 boxesToAvoid,
+                waypoints,  // Pass existing waypoints including exit ports
             );
         }
 
-        // Simple orthogonal path: down, across, down
-        waypoints.push({ x: sourceX, y: turnY });
-        waypoints.push({ x: targetX, y: turnY });
+        // Simple orthogonal path: down (from effective source), across, down
+        // Only add down waypoint if we need to move vertically from effective source
+        if (turnY !== effectiveSourceY) {
+            waypoints.push({ x: effectiveSourceX, y: turnY });
+        }
+        // Move horizontally to target X if needed
+        if (effectiveSourceX !== targetX) {
+            waypoints.push({ x: targetX, y: turnY });
+        }
         waypoints.push({ x: targetX, y: targetY });
 
         // Build SVG path
@@ -284,10 +324,15 @@
         tgtX: number,
         tgtY: number,
         allObstacles: GroupBox[],
+        existingWaypoints: Array<{ x: number; y: number }> = [],
     ): string {
         const boxes = get(groupBoxesStore);
-        const waypoints: Array<{ x: number; y: number }> = [];
-        waypoints.push({ x: srcX, y: srcY });
+        const waypoints: Array<{ x: number; y: number }> = [...existingWaypoints];
+        
+        // If no existing waypoints, start with source position
+        if (waypoints.length === 0) {
+            waypoints.push({ x: srcX, y: srcY });
+        }
 
         let currentX = srcX;
         let currentY = srcY;
