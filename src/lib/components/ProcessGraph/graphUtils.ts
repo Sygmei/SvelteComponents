@@ -1314,6 +1314,150 @@ function buildUnifiedElkGraphWithExpansions(
 }
 
 /**
+ * Adjust vertical spacing in ELK layout to ensure proper margin for edges entering groups
+ * 
+ * When an edge goes from a node to a target inside a group, the edge needs to:
+ * 1. Branch at sourceBottom + GLOBAL_MARGIN (if multiple outgoing edges)
+ * 2. Turn horizontally at groupTop - GLOBAL_MARGIN
+ * 
+ * This means we need at least 2*GLOBAL_MARGIN between source bottom and group top.
+ * This function adjusts group positions if needed.
+ */
+function adjustVerticalMargins(
+    elkGraph: ElkNode,
+    collapsedGroups: Set<string>
+): void {
+    // First, collect all edges and build a map of which groups they enter
+    const edgesEnteringGroups = new Map<string, { sourceId: string; sourceParent: ElkNode }[]>();
+    
+    function collectEdges(node: ElkNode): void {
+        if (node.edges) {
+            node.edges.forEach(edge => {
+                const sourceId = edge.sources[0];
+                const targetId = edge.targets[0];
+                
+                // Check if target is inside a group that source is NOT inside
+                // This means the edge enters that group
+                const targetGroup = getDirectParentGroupId(targetId);
+                const sourceGroup = getDirectParentGroupId(sourceId);
+                
+                if (targetGroup && targetGroup !== sourceGroup) {
+                    // This edge enters targetGroup
+                    if (!edgesEnteringGroups.has(targetGroup)) {
+                        edgesEnteringGroups.set(targetGroup, []);
+                    }
+                    edgesEnteringGroups.get(targetGroup)!.push({
+                        sourceId,
+                        sourceParent: node // The parent ELK node containing this edge
+                    });
+                    console.log(`[VerticalMargins] Edge ${sourceId} -> ${targetId} enters group ${targetGroup}`);
+                }
+            });
+        }
+        
+        // Recurse
+        if (node.children) {
+            node.children.forEach(child => {
+                if (!collapsedGroups.has(child.id)) {
+                    collectEdges(child);
+                }
+            });
+        }
+    }
+    
+    function getDirectParentGroupId(nodeId: string): string | null {
+        // For "prod_validation.validate_jsonschema.get_schemas", parent is "group-prod_validation.validate_jsonschema"
+        // For "group-prod_validation.validate_jsonschema", parent is "group-prod_validation"
+        if (nodeId.startsWith('group-')) {
+            const parts = nodeId.replace('group-', '').split('.');
+            if (parts.length > 1) {
+                return 'group-' + parts.slice(0, -1).join('.');
+            }
+            return null; // Root level group
+        } else {
+            const parts = nodeId.split('.');
+            if (parts.length > 1) {
+                return 'group-' + parts.slice(0, -1).join('.');
+            }
+            return null; // Root level node
+        }
+    }
+    
+    collectEdges(elkGraph);
+    
+    // Now check each group that has edges entering it
+    // and ensure there's enough vertical margin
+    function findNodeInParent(parent: ElkNode, nodeId: string): ElkNode | undefined {
+        return parent.children?.find(c => c.id === nodeId);
+    }
+    
+    function adjustGroupMargin(parentNode: ElkNode): void {
+        if (!parentNode.children) return;
+        
+        // Sort children by Y position
+        const sortedChildren = [...parentNode.children].sort((a, b) => (a.y || 0) - (b.y || 0));
+        
+        // Check each group that has edges entering it
+        for (const child of sortedChildren) {
+            if (!child.id.startsWith('group-')) continue;
+            
+            const edgeEntries = edgesEnteringGroups.get(child.id);
+            if (!edgeEntries) continue;
+            
+            console.log(`[VerticalMargins] Checking group ${child.id} with ${edgeEntries.length} entering edges`);
+            
+            // Find the source node with the highest bottom Y
+            let maxSourceBottom = 0;
+            for (const entry of edgeEntries) {
+                // Find source in parent's children
+                const sourceNode = findNodeInParent(parentNode, entry.sourceId);
+                console.log(`[VerticalMargins]   Source ${entry.sourceId} in parent ${parentNode.id}: ${sourceNode ? `found at y=${sourceNode.y}, h=${sourceNode.height}` : 'NOT FOUND'}`);
+                if (sourceNode) {
+                    const sourceBottom = (sourceNode.y || 0) + (sourceNode.height || 0);
+                    maxSourceBottom = Math.max(maxSourceBottom, sourceBottom);
+                }
+            }
+            
+            if (maxSourceBottom > 0) {
+                // Required group top Y: maxSourceBottom + 2*GLOBAL_MARGIN
+                // (one margin for branch point, one margin for turn above group)
+                const requiredGroupTop = maxSourceBottom + 2 * GLOBAL_MARGIN;
+                const currentGroupTop = child.y || 0;
+                
+                console.log(`[VerticalMargins]   maxSourceBottom=${maxSourceBottom}, required=${requiredGroupTop}, current=${currentGroupTop}`);
+                
+                if (currentGroupTop < requiredGroupTop) {
+                    // Need to shift this group and all nodes below it down
+                    const shiftAmount = requiredGroupTop - currentGroupTop;
+                    console.log(`[VerticalMargins]   SHIFTING ${child.id} and siblings down by ${shiftAmount}px`);
+                    
+                    // Find all nodes at or below this Y and shift them
+                    for (const otherChild of sortedChildren) {
+                        if ((otherChild.y || 0) >= currentGroupTop) {
+                            otherChild.y = (otherChild.y || 0) + shiftAmount;
+                        }
+                    }
+                    
+                    // Also need to increase parent height
+                    if (parentNode.height) {
+                        parentNode.height += shiftAmount;
+                    }
+                }
+            }
+        }
+        
+        // Recurse into child groups
+        for (const child of parentNode.children) {
+            if (child.id.startsWith('group-') && !collapsedGroups.has(child.id)) {
+                adjustGroupMargin(child);
+            }
+        }
+    }
+    
+    adjustGroupMargin(elkGraph);
+}
+
+/**
  * Convert unified ELK layout to Svelte Flow format
  */
 function unifiedElkToSvelteFlow(
@@ -1696,6 +1840,9 @@ export async function processesToFlowAsync(
         elkGraph = buildUnifiedElkGraphWithExpansions(processes, groups, nodeWidths, collapsedGroups, expansions);
         layoutedGraph = await elk.layout(elkGraph);
     }
+
+    // Post-process: Adjust vertical margins to ensure edges entering groups have room to turn
+    adjustVerticalMargins(layoutedGraph, collapsedGroups);
 
     // Post-process: Center children within each group
     centerChildrenInGroups(layoutedGraph);
