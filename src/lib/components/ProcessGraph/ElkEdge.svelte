@@ -80,13 +80,19 @@
     function findGroupTransitions(
         sourceId: string,
         targetId: string,
+        boxes: GroupBox[],
     ): {
         exitGroups: string[];
         entryGroups: string[];
         commonAncestor: string | null;
+        targetIsCollapsedGroup: boolean;
     } {
         const sourceGroups = getGroupHierarchy(sourceId);
         const targetGroups = getGroupHierarchy(targetId);
+
+        // Check if target is itself a collapsed group
+        const targetIsCollapsedGroup = targetId.startsWith("group-") && 
+            boxes.some(b => b.id === targetId && b.collapsed);
 
         // Find common ancestor
         let commonAncestor: string | null = null;
@@ -111,8 +117,14 @@
             entryGroups.push(tg);
         }
         entryGroups.reverse(); // Enter from outermost to innermost
+        
+        // If target is a collapsed group and we're not already entering its parent groups,
+        // add the target group itself as an entry group for routing purposes
+        if (targetIsCollapsedGroup && !entryGroups.includes(targetId)) {
+            entryGroups.push(targetId);
+        }
 
-        return { exitGroups, entryGroups, commonAncestor };
+        return { exitGroups, entryGroups, commonAncestor, targetIsCollapsedGroup };
     }
 
     // Generate path with entry/exit port waypoints
@@ -129,8 +141,8 @@
         const targetConfluence = confluencePoints.get(target);
 
         // Find group transitions
-        const { exitGroups, entryGroups, commonAncestor } =
-            findGroupTransitions(source, target);
+        const { exitGroups, entryGroups, commonAncestor, targetIsCollapsedGroup } =
+            findGroupTransitions(source, target, boxes);
 
         // Build waypoints
         const waypoints: Array<{ x: number; y: number }> = [];

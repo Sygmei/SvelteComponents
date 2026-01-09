@@ -2390,6 +2390,19 @@ function calculateLevels(processes: Process[]): Map<string, number> {
 }
 
 function extractGroup(name: string): string {
+    // Handle group IDs (e.g., "group-deploy_mono_airflow" -> "root", "group-prod_validation.validate_jsonschema" -> "prod_validation")
+    if (name.startsWith('group-')) {
+        const groupPath = name.replace('group-', '');
+        const parts = groupPath.split('.');
+        if (parts.length > 1) {
+            // This group has a parent group
+            return parts.slice(0, -1).join('.');
+        }
+        // Top-level group, parent is root
+        return 'root';
+    }
+    
+    // Handle regular process names
     const parts = name.split('.');
     if (parts.length > 1) {
         return parts.slice(0, -1).join('.');
