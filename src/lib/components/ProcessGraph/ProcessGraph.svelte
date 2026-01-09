@@ -25,33 +25,33 @@
 
     // Default radial menu actions
     const defaultRadialActions: RadialMenuAction[] = [
-        { 
-            id: 'retry', 
-            label: 'Retry', 
-            icon: '↻',
-            color: '#3b82f6',
-            hoverColor: '#2563eb',
+        {
+            id: "retry",
+            label: "Retry",
+            icon: "↻",
+            color: "#3b82f6",
+            hoverColor: "#2563eb",
         },
-        { 
-            id: 'set-failed', 
-            label: 'Failed', 
-            icon: '✗',
-            color: '#ef4444',
-            hoverColor: '#dc2626',
+        {
+            id: "set-failed",
+            label: "Failed",
+            icon: "✗",
+            color: "#ef4444",
+            hoverColor: "#dc2626",
         },
-        { 
-            id: 'set-success', 
-            label: 'Success', 
-            icon: '✓',
-            color: '#10b981',
-            hoverColor: '#059669',
+        {
+            id: "set-success",
+            label: "Success",
+            icon: "✓",
+            color: "#10b981",
+            hoverColor: "#059669",
         },
-        { 
-            id: 'logs', 
-            label: 'Logs', 
-            icon: '📋',
-            color: '#8b5cf6',
-            hoverColor: '#7c3aed',
+        {
+            id: "logs",
+            label: "Logs",
+            icon: "📋",
+            color: "#8b5cf6",
+            hoverColor: "#7c3aed",
         },
     ];
 
@@ -196,8 +196,8 @@
                         };
                     }
                     // Process nodes get radial menu config
-                    return { 
-                        ...node, 
+                    return {
+                        ...node,
                         draggable: false,
                         data: {
                             ...node.data,
@@ -223,8 +223,8 @@
                         };
                     }
                     // Process nodes get radial menu config
-                    return { 
-                        ...node, 
+                    return {
+                        ...node,
                         draggable: false,
                         data: {
                             ...node.data,
@@ -280,9 +280,9 @@
     <!-- Stats Panel -->
     {#if showStats}
         <div class="absolute left-4 top-4 z-10">
-            <StatusCountWidget 
-                {stats} 
-                {isDark} 
+            <StatusCountWidget
+                {stats}
+                {isDark}
                 {hideSkipped}
                 onToggleSkipped={() => (hideSkipped = !hideSkipped)}
             />
@@ -327,6 +327,7 @@
         maxZoom={2}
         nodesDraggable={false}
         nodesConnectable={false}
+        colorMode={isDark ? "dark" : "light"}
         defaultEdgeOptions={{
             type: "elk",
             style: "stroke-width: 2px;",
@@ -334,13 +335,7 @@
         proOptions={{ hideAttribution: true }}
         class="process-flow {isDark ? 'theme-dark' : 'theme-light'}"
     >
-        <Background
-            variant={BackgroundVariant.Dots}
-            gap={20}
-            size={1}
-            bgColor="transparent"
-            patternColor={isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.1)"}
-        />
+        <Background variant={BackgroundVariant.Dots} />
 
         {#if showControls}
             <Controls

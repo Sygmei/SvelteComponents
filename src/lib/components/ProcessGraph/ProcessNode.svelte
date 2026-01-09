@@ -8,7 +8,11 @@
     } from "@xyflow/svelte";
     import type { ProcessNodeData, RadialMenuAction } from "./types";
     import { onMount } from "svelte";
-    import { hoveredNodeStore, focusedNodeStore, highlightedStatusStore } from "./graphUtils";
+    import {
+        hoveredNodeStore,
+        focusedNodeStore,
+        highlightedStatusStore,
+    } from "./graphUtils";
     import { get } from "svelte/store";
     import RadialMenu from "./RadialMenu.svelte";
 
@@ -31,15 +35,15 @@
 
     // Check if node has input/output connections
     const hasInputConnection = $derived(
-        edges.current.some((edge) => edge.target === id)
+        edges.current.some((edge) => edge.target === id),
     );
     const hasOutputConnection = $derived(
-        edges.current.some((edge) => edge.source === id)
+        edges.current.some((edge) => edge.source === id),
     );
 
     // Theme detection
     let isDark = $state(true);
-    
+
     // Radial menu state
     let showRadialMenu = $state(false);
 
@@ -48,15 +52,15 @@
     highlightedStatusStore.subscribe((value) => {
         highlightedStatus = value;
     });
-    
+
     // Check if this node should be highlighted based on status hover
     const isStatusHighlighted = $derived(
-        highlightedStatus !== null && data.status === highlightedStatus
+        highlightedStatus !== null && data.status === highlightedStatus,
     );
-    
+
     // Check if this node should be dimmed (another status is highlighted but not ours)
     const isStatusDimmed = $derived(
-        highlightedStatus !== null && data.status !== highlightedStatus
+        highlightedStatus !== null && data.status !== highlightedStatus,
     );
 
     onMount(() => {
@@ -66,7 +70,7 @@
             isDark = e.matches;
         };
         mediaQuery.addEventListener("change", handler);
-        
+
         return () => {
             mediaQuery.removeEventListener("change", handler);
         };
@@ -82,46 +86,50 @@
 
     // Default radial menu items (fallback if not provided via props)
     const defaultRadialMenuItems: RadialMenuAction[] = [
-        { 
-            id: 'retry', 
-            label: 'Retry', 
-            icon: '↻',
-            color: '#3b82f6',
-            hoverColor: '#2563eb',
+        {
+            id: "retry",
+            label: "Retry",
+            icon: "↻",
+            color: "#3b82f6",
+            hoverColor: "#2563eb",
         },
-        { 
-            id: 'set-failed', 
-            label: 'Failed', 
-            icon: '✗',
-            color: '#ef4444',
-            hoverColor: '#dc2626',
+        {
+            id: "set-failed",
+            label: "Failed",
+            icon: "✗",
+            color: "#ef4444",
+            hoverColor: "#dc2626",
         },
-        { 
-            id: 'set-success', 
-            label: 'Success', 
-            icon: '✓',
-            color: '#10b981',
-            hoverColor: '#059669',
+        {
+            id: "set-success",
+            label: "Success",
+            icon: "✓",
+            color: "#10b981",
+            hoverColor: "#059669",
         },
-        { 
-            id: 'logs', 
-            label: 'Logs', 
-            icon: '📋',
-            color: '#8b5cf6',
-            hoverColor: '#7c3aed',
+        {
+            id: "logs",
+            label: "Logs",
+            icon: "📋",
+            color: "#8b5cf6",
+            hoverColor: "#7c3aed",
         },
     ];
 
     // Use provided radial actions or fall back to defaults
-    const radialMenuItems = $derived(data.radialActions ?? defaultRadialMenuItems);
+    const radialMenuItems = $derived(
+        data.radialActions ?? defaultRadialMenuItems,
+    );
 
     function handleRadialAction(actionId: string) {
         // Find the action and call its callback if provided
-        const action = radialMenuItems.find(a => a.id === actionId);
+        const action = radialMenuItems.find((a) => a.id === actionId);
         if (action?.onAction) {
             action.onAction(id, data);
         } else {
-            console.log(`[ProcessNode] Radial action: ${actionId} for node: ${id}`);
+            console.log(
+                `[ProcessNode] Radial action: ${actionId} for node: ${id}`,
+            );
         }
         showRadialMenu = false;
     }
@@ -136,24 +144,24 @@
         if (node.internals?.positionAbsolute) {
             return node.internals.positionAbsolute;
         }
-        
+
         // Otherwise, compute by traversing parent chain
         let absX = node.position.x;
         let absY = node.position.y;
         let parentId = node.parentId;
-        
+
         while (parentId) {
-            const parent = nodes.current.find(n => n.id === parentId);
+            const parent = nodes.current.find((n) => n.id === parentId);
             if (!parent) break;
-            
+
             // Add parent's position
             absX += parent.position.x;
             absY += parent.position.y;
-            
+
             // Check if parent itself has a parent
             parentId = parent.parentId;
         }
-        
+
         return { x: absX, y: absY };
     }
 
@@ -181,9 +189,9 @@
             }
         }
 
-    // Get the current node
-    const currentNode = nodes.current.find(n => n.id === id);
-    if (!currentNode) return;
+        // Get the current node
+        const currentNode = nodes.current.find((n) => n.id === id);
+        if (!currentNode) return;
 
         // Get current node center (this will be the center of our view)
         const currentPos = getAbsolutePosition(currentNode);
@@ -195,28 +203,30 @@
         // Calculate the max distance from current node center to any connected node's edge
         let maxDistanceX = currentWidth / 2 + 50;
         let maxDistanceY = currentHeight / 2 + 50;
-        
+
         for (const nodeId of connectedNodeIds) {
             if (nodeId === id) continue;
-            const node = nodes.current.find(n => n.id === nodeId);
+            const node = nodes.current.find((n) => n.id === nodeId);
             if (node) {
                 const pos = getAbsolutePosition(node);
                 const w = node.measured?.width ?? 180;
                 const h = node.measured?.height ?? 80;
-                
+
                 // Calculate distance to the farthest edge of this node
                 const nodeLeft = pos.x;
                 const nodeRight = pos.x + w;
                 const nodeTop = pos.y;
                 const nodeBottom = pos.y + h;
-                
-                maxDistanceX = Math.max(maxDistanceX, 
+
+                maxDistanceX = Math.max(
+                    maxDistanceX,
                     Math.abs(nodeLeft - currentCenterX),
-                    Math.abs(nodeRight - currentCenterX)
+                    Math.abs(nodeRight - currentCenterX),
                 );
-                maxDistanceY = Math.max(maxDistanceY,
+                maxDistanceY = Math.max(
+                    maxDistanceY,
                     Math.abs(nodeTop - currentCenterY),
-                    Math.abs(nodeBottom - currentCenterY)
+                    Math.abs(nodeBottom - currentCenterY),
                 );
             }
         }
@@ -235,7 +245,7 @@
         };
 
         focusedNodeStore.set(id);
-        
+
         // fitBounds will center on the provided rect
         fitBounds(bounds, {
             padding: 0.1,
@@ -384,16 +394,16 @@
     };
 
     const folderColor = $derived(getFolderColor(groupPath()));
-    
+
     // Dynamic classes for status highlighting
     const highlightClasses = $derived(() => {
         if (isStatusHighlighted) {
-            return 'scale-110 ring-4 ring-white/50 z-10';
+            return "scale-110 ring-4 ring-white/50 z-10";
         }
         if (isStatusDimmed) {
-            return 'opacity-30';
+            return "opacity-30";
         }
-        return '';
+        return "";
     });
 </script>
 
@@ -402,14 +412,16 @@
 <div
     class="process-node group relative w-[180px] rounded-xl border-2 backdrop-blur-sm transition-all duration-300 {config.bgColor} {config.borderColor} {selected
         ? 'shadow-lg ' + config.glow
-        : 'shadow-md'} {isDark ? 'bg-slate-900/80' : 'bg-white/90'} {highlightClasses()}"
+        : 'shadow-md'} {isDark
+        ? 'bg-slate-900/80'
+        : 'bg-white/90'} {highlightClasses()}"
     class:scale-105={selected && !isStatusHighlighted}
     onmouseenter={handleMouseEnter}
     onmouseleave={handleMouseLeave}
     onclick={handleClick}
 >
     <!-- Radial Menu Component -->
-    <RadialMenu 
+    <RadialMenu
         items={radialMenuItems}
         show={showRadialMenu}
         onAction={handleRadialAction}

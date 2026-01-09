@@ -15,8 +15,12 @@
     const menuRadius = 70;
     const segmentAngle = $derived(180 / items.length);
 
-    function getSegmentPath(index: number, innerRadius: number, outerRadius: number): string {
-        const startAngle = -90 + (index * segmentAngle);
+    function getSegmentPath(
+        index: number,
+        innerRadius: number,
+        outerRadius: number,
+    ): string {
+        const startAngle = -90 + index * segmentAngle;
         const endAngle = startAngle + segmentAngle;
         const gap = 2; // Gap between segments in degrees
 
@@ -40,23 +44,31 @@
         return `M ${x1} ${y1} A ${outerRadius} ${outerRadius} 0 ${largeArcFlag} 1 ${x2} ${y2} L ${x3} ${y3} A ${innerRadius} ${innerRadius} 0 ${largeArcFlag} 0 ${x4} ${y4} Z`;
     }
 
-    function getSegmentCenter(index: number, radius: number): { x: number; y: number } {
-        const midAngle = -90 + (index * segmentAngle) + (segmentAngle / 2);
+    function getSegmentCenter(
+        index: number,
+        radius: number,
+    ): { x: number; y: number } {
+        const midAngle = -90 + index * segmentAngle + segmentAngle / 2;
         const rad = (midAngle * Math.PI) / 180;
         return {
             x: Math.cos(rad) * radius,
-            y: Math.sin(rad) * radius
+            y: Math.sin(rad) * radius,
         };
     }
 
-    function getLabelPosition(index: number, innerRadius: number, outerRadius: number, offset: number): { x: number; y: number } {
+    function getLabelPosition(
+        index: number,
+        innerRadius: number,
+        outerRadius: number,
+        offset: number,
+    ): { x: number; y: number } {
         // Calculate position along the radial line from inner to outer, plus offset
-        const midAngle = -90 + (index * segmentAngle) + (segmentAngle / 2);
+        const midAngle = -90 + index * segmentAngle + segmentAngle / 2;
         const rad = (midAngle * Math.PI) / 180;
         const labelRadius = outerRadius + offset;
         return {
             x: Math.cos(rad) * labelRadius,
-            y: Math.sin(rad) * labelRadius
+            y: Math.sin(rad) * labelRadius,
         };
     }
 
@@ -70,25 +82,29 @@
     onMount(() => {
         // Global click handler to close radial menu when clicking outside
         const handleGlobalClick = (e: MouseEvent) => {
-            if (show && menuElement && !menuElement.contains(e.target as Node)) {
+            if (
+                show &&
+                menuElement &&
+                !menuElement.contains(e.target as Node)
+            ) {
                 onClose();
             }
         };
 
         // Use capture phase to ensure we catch clicks on the svelte-flow pane
-        document.addEventListener('click', handleGlobalClick, true);
+        document.addEventListener("click", handleGlobalClick, true);
 
         return () => {
-            document.removeEventListener('click', handleGlobalClick, true);
+            document.removeEventListener("click", handleGlobalClick, true);
         };
     });
 </script>
 
 {#if show}
     <!-- Half-circle radial menu on the right -->
-    <div 
+    <div
         bind:this={menuElement}
-        class="absolute top-1/2 -translate-y-1/2 z-50 pointer-events-none" 
+        class="absolute top-1/2 -translate-y-1/2 z-50 pointer-events-none"
         style="left: calc(100% + 5px);"
     >
         <svg
@@ -106,8 +122,19 @@
                         <feMergeNode in="SourceGraphic" />
                     </feMerge>
                 </filter>
-                <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-                    <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.4" />
+                <filter
+                    id="shadow"
+                    x="-50%"
+                    y="-50%"
+                    width="200%"
+                    height="200%"
+                >
+                    <feDropShadow
+                        dx="2"
+                        dy="2"
+                        stdDeviation="3"
+                        flood-opacity="0.4"
+                    />
                 </filter>
             </defs>
 
@@ -116,8 +143,16 @@
                 {@const innerRadius = 25}
                 {@const outerRadius = menuRadius + 20}
                 {@const path = getSegmentPath(index, innerRadius, outerRadius)}
-                {@const center = getSegmentCenter(index, (innerRadius + outerRadius) / 2)}
-                {@const labelPos = getLabelPosition(index, innerRadius, outerRadius, 15)}
+                {@const center = getSegmentCenter(
+                    index,
+                    (innerRadius + outerRadius) / 2,
+                )}
+                {@const labelPos = getLabelPosition(
+                    index,
+                    innerRadius,
+                    outerRadius,
+                    15,
+                )}
 
                 <g
                     class="segment-group pointer-events-auto cursor-pointer"
@@ -125,7 +160,9 @@
                     onclick={(e) => handleAction(item.id, e)}
                     role="button"
                     tabindex="0"
-                    onkeydown={(e) => e.key === 'Enter' && handleAction(item.id, e as unknown as MouseEvent)}
+                    onkeydown={(e) =>
+                        e.key === "Enter" &&
+                        handleAction(item.id, e as unknown as MouseEvent)}
                 >
                     <!-- Segment background -->
                     <path
@@ -171,7 +208,8 @@
 <style>
     /* Segment menu animation */
     .segment-group {
-        animation: segment-slide-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        animation: segment-slide-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)
+            forwards;
         opacity: 0;
         transform-origin: 0 0;
     }

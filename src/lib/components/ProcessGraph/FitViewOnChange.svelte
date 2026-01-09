@@ -14,7 +14,7 @@
     $effect(() => {
         // Track the trigger value
         const _trigger = trigger;
-        
+
         // Skip the first run (initial mount)
         if (!initialized) {
             initialized = true;

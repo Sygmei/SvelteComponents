@@ -135,7 +135,7 @@
         };
 
         // Debug logging
-        console.debug('[GroupNode] handleGroupClick', {
+        console.debug("[GroupNode] handleGroupClick", {
             id,
             currentPos,
             currentCenter: { x: currentCenterX, y: currentCenterY },
@@ -143,7 +143,7 @@
         });
 
         focusedNodeStore.set(id);
-        
+
         // fitBounds will center on the provided rect
         fitBounds(bounds, {
             padding: 0.1,

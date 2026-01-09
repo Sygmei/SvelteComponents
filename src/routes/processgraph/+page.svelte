@@ -1,6 +1,9 @@
 <script lang="ts">
     import { ProcessGraph } from "$lib/components/ProcessGraph";
-    import type { ProcessGraphData, RadialMenuAction } from "$lib/components/ProcessGraph";
+    import type {
+        ProcessGraphData,
+        RadialMenuAction,
+    } from "$lib/components/ProcessGraph";
     import { onMount } from "svelte";
 
     // Import the dataset
