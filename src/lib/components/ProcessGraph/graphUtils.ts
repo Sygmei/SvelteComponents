@@ -867,10 +867,6 @@ function centerChildrenInGroups(elkGraph: ElkNode): void {
             layerMap.get(roundedLayerY)!.push(child);
         });
 
-        console.log(`[Centering ${node.id}] Layers:`, Array.from(layerMap.entries()).map(([y, nodes]) =>
-            `y=${y}: [${nodes.map(n => `${n.id}(x=${n.x},w=${n.width})`).join(', ')}]`
-        ));
-
         // For each layer, try to center it based on connections or parent center
         const nodeWidth = node.width || 0;
         const nodeCenterX = nodeWidth / 2;
@@ -893,8 +889,6 @@ function centerChildrenInGroups(elkGraph: ElkNode): void {
 
             const layerWidth = layerMaxX - layerMinX;
             const layerCenterX = layerMinX + layerWidth / 2;
-
-            console.log(`  Layer ${layerIndex} (y=${layerY}): nodes=${layerNodes.map(n => n.id).join(',')}, minX=${layerMinX}, maxX=${layerMaxX}, layerWidth=${layerWidth}, layerCenterX=${layerCenterX}`);
 
             // Determine target center for this layer
             let targetCenterX = nodeCenterX;
@@ -1350,7 +1344,6 @@ function adjustVerticalMargins(
                         sourceId,
                         sourceParent: node // The parent ELK node containing this edge
                     });
-                    console.log(`[VerticalMargins] Edge ${sourceId} -> ${targetId} enters group ${targetGroup}`);
                 }
             });
         }
@@ -1404,14 +1397,11 @@ function adjustVerticalMargins(
             const edgeEntries = edgesEnteringGroups.get(child.id);
             if (!edgeEntries) continue;
             
-            console.log(`[VerticalMargins] Checking group ${child.id} with ${edgeEntries.length} entering edges`);
-            
             // Find the source node with the highest bottom Y
             let maxSourceBottom = 0;
             for (const entry of edgeEntries) {
                 // Find source in parent's children
                 const sourceNode = findNodeInParent(parentNode, entry.sourceId);
-                console.log(`[VerticalMargins]   Source ${entry.sourceId} in parent ${parentNode.id}: ${sourceNode ? `found at y=${sourceNode.y}, h=${sourceNode.height}` : 'NOT FOUND'}`);
                 if (sourceNode) {
                     const sourceBottom = (sourceNode.y || 0) + (sourceNode.height || 0);
                     maxSourceBottom = Math.max(maxSourceBottom, sourceBottom);
@@ -1419,17 +1409,16 @@ function adjustVerticalMargins(
             }
             
             if (maxSourceBottom > 0) {
-                // Required group top Y: maxSourceBottom + 2*GLOBAL_MARGIN
-                // (one margin for branch point, one margin for turn above group)
-                const requiredGroupTop = maxSourceBottom + 2 * GLOBAL_MARGIN;
+                // Required group top Y: maxSourceBottom + 3*GLOBAL_MARGIN
+                // - one margin for branchY (sourceBottom + MARGIN)
+                // - one margin gap between branchY and turnY  
+                // - one margin for turnY (groupTop - MARGIN)
+                const requiredGroupTop = maxSourceBottom + 3 * GLOBAL_MARGIN;
                 const currentGroupTop = child.y || 0;
-                
-                console.log(`[VerticalMargins]   maxSourceBottom=${maxSourceBottom}, required=${requiredGroupTop}, current=${currentGroupTop}`);
                 
                 if (currentGroupTop < requiredGroupTop) {
                     // Need to shift this group and all nodes below it down
                     const shiftAmount = requiredGroupTop - currentGroupTop;
-                    console.log(`[VerticalMargins]   SHIFTING ${child.id} and siblings down by ${shiftAmount}px`);
                     
                     // Find all nodes at or below this Y and shift them
                     for (const otherChild of sortedChildren) {
