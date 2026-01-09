@@ -46,6 +46,9 @@ export const confluencePointsStore = writable<Map<string, ConfluencePoints>>(new
 // Store for currently hovered node - used to highlight connected edges
 export const hoveredNodeStore = writable<string | null>(null);
 
+// Store for currently focused (zoomed) node - used to toggle zoom behavior
+export const focusedNodeStore = writable<string | null>(null);
+
 /**
  * Find the common ancestor group of two groups (or 'root' if none)
  */
@@ -1332,18 +1335,18 @@ function adjustVerticalMargins(
 ): void {
     // First, collect all edges and build a map of which groups they enter
     const edgesEnteringGroups = new Map<string, { sourceId: string; sourceParent: ElkNode }[]>();
-    
+
     function collectEdges(node: ElkNode): void {
         if (node.edges) {
             node.edges.forEach(edge => {
                 const sourceId = edge.sources[0];
                 const targetId = edge.targets[0];
-                
+
                 // Check if target is inside a group that source is NOT inside
                 // This means the edge enters that group
                 const targetGroup = getDirectParentGroupId(targetId);
                 const sourceGroup = getDirectParentGroupId(sourceId);
-                
+
                 if (targetGroup && targetGroup !== sourceGroup) {
                     // This edge enters targetGroup
                     if (!edgesEnteringGroups.has(targetGroup)) {
@@ -1357,7 +1360,7 @@ function adjustVerticalMargins(
                 }
             });
         }
-        
+
         // Recurse
         if (node.children) {
             node.children.forEach(child => {
@@ -1367,7 +1370,7 @@ function adjustVerticalMargins(
             });
         }
     }
-    
+
     function getDirectParentGroupId(nodeId: string): string | null {
         // For "prod_validation.validate_jsonschema.get_schemas", parent is "group-prod_validation.validate_jsonschema"
         // For "group-prod_validation.validate_jsonschema", parent is "group-prod_validation"
@@ -1385,30 +1388,30 @@ function adjustVerticalMargins(
             return null; // Root level node
         }
     }
-    
+
     collectEdges(elkGraph);
-    
+
     // Now check each group that has edges entering it
     // and ensure there's enough vertical margin
     function findNodeInParent(parent: ElkNode, nodeId: string): ElkNode | undefined {
         return parent.children?.find(c => c.id === nodeId);
     }
-    
+
     function adjustGroupMargin(parentNode: ElkNode): void {
         if (!parentNode.children) return;
-        
+
         // Sort children by Y position
         const sortedChildren = [...parentNode.children].sort((a, b) => (a.y || 0) - (b.y || 0));
-        
+
         // Check each group that has edges entering it
         for (const child of sortedChildren) {
             if (!child.id.startsWith('group-')) continue;
-            
+
             const edgeEntries = edgesEnteringGroups.get(child.id);
             if (!edgeEntries) continue;
-            
+
             console.log(`[VerticalMargins] Checking group ${child.id} with ${edgeEntries.length} entering edges`);
-            
+
             // Find the source node with the highest bottom Y
             let maxSourceBottom = 0;
             for (const entry of edgeEntries) {
@@ -1420,27 +1423,27 @@ function adjustVerticalMargins(
                     maxSourceBottom = Math.max(maxSourceBottom, sourceBottom);
                 }
             }
-            
+
             if (maxSourceBottom > 0) {
                 // Required group top Y: maxSourceBottom + 2*GLOBAL_MARGIN
                 // (one margin for branch point, one margin for turn above group)
                 const requiredGroupTop = maxSourceBottom + 2 * GLOBAL_MARGIN;
                 const currentGroupTop = child.y || 0;
-                
+
                 console.log(`[VerticalMargins]   maxSourceBottom=${maxSourceBottom}, required=${requiredGroupTop}, current=${currentGroupTop}`);
-                
+
                 if (currentGroupTop < requiredGroupTop) {
                     // Need to shift this group and all nodes below it down
                     const shiftAmount = requiredGroupTop - currentGroupTop;
                     console.log(`[VerticalMargins]   SHIFTING ${child.id} and siblings down by ${shiftAmount}px`);
-                    
+
                     // Find all nodes at or below this Y and shift them
                     for (const otherChild of sortedChildren) {
                         if ((otherChild.y || 0) >= currentGroupTop) {
                             otherChild.y = (otherChild.y || 0) + shiftAmount;
                         }
                     }
-                    
+
                     // Also need to increase parent height
                     if (parentNode.height) {
                         parentNode.height += shiftAmount;
@@ -1448,7 +1451,7 @@ function adjustVerticalMargins(
                 }
             }
         }
-        
+
         // Recurse into child groups
         for (const child of parentNode.children) {
             if (child.id.startsWith('group-') && !collapsedGroups.has(child.id)) {
@@ -1456,7 +1459,7 @@ function adjustVerticalMargins(
             }
         }
     }
-    
+
     adjustGroupMargin(elkGraph);
 }
 
@@ -1643,29 +1646,29 @@ function unifiedElkToSvelteFlow(
     // Calculate confluence points for edges that branch from or join to the same node
     // This ensures edges from the same source branch at the same Y, and edges to the same target join at the same Y
     const confluencePoints = new Map<string, ConfluencePoints>();
-    
+
     // Helper to get the effective exit Y for a node going to a specific target
     // This considers which groups the edge needs to exit (only groups NOT containing the target)
     function getEffectiveExitY(sourceId: string, targetId: string): number {
         const sourcePos = absolutePositions.get(sourceId);
         if (!sourcePos) return 0;
-        
+
         const sourceGroup = extractGroup(sourceId);
         const targetGroup = extractGroup(targetId);
-        
+
         // Base exit Y is bottom of source node + margin
         let maxExitY = sourcePos.y + sourcePos.height + GLOBAL_MARGIN;
-        
+
         if (sourceGroup === 'root') {
             // Source not in any group - no group exit needed
             return maxExitY;
         }
-        
+
         // Find which groups source needs to exit to reach target
         // Source needs to exit groups that don't contain the target
         const sourceParts = sourceGroup.split('.');
         const targetParts = targetGroup === 'root' ? [] : targetGroup.split('.');
-        
+
         // Find common prefix length
         let commonPrefixLen = 0;
         for (let i = 0; i < Math.min(sourceParts.length, targetParts.length); i++) {
@@ -1675,7 +1678,7 @@ function unifiedElkToSvelteFlow(
                 break;
             }
         }
-        
+
         // Source needs to exit groups from its innermost down to (but not including) the common ancestor
         // For example, if source is in "prod_validation.validate_jsonschema" and target is in "prod_validation",
         // source needs to exit "prod_validation.validate_jsonschema" but NOT "prod_validation"
@@ -1687,18 +1690,18 @@ function unifiedElkToSvelteFlow(
                 maxExitY = Math.max(maxExitY, groupExitY);
             }
         }
-        
+
         return maxExitY;
     }
-    
+
     // Group edges by source and target
     const edgesBySource = new Map<string, Array<{ target: string; targetY: number; targetHeight: number }>>();
     const edgesByTarget = new Map<string, Array<{ source: string; sourceY: number; sourceHeight: number; effectiveExitY: number }>>();
-    
+
     edges.forEach(edge => {
         const sourcePos = absolutePositions.get(edge.source);
         const targetPos = absolutePositions.get(edge.target);
-        
+
         if (sourcePos && targetPos) {
             // Group by source
             if (!edgesBySource.has(edge.source)) {
@@ -1709,7 +1712,7 @@ function unifiedElkToSvelteFlow(
                 targetY: targetPos.y,
                 targetHeight: targetPos.height
             });
-            
+
             // Group by target - also compute effective exit Y for the source (relative to this target)
             if (!edgesByTarget.has(edge.target)) {
                 edgesByTarget.set(edge.target, []);
@@ -1722,7 +1725,7 @@ function unifiedElkToSvelteFlow(
             });
         }
     });
-    
+
     // Calculate branch points for nodes with multiple outgoing edges
     edgesBySource.forEach((targets, sourceId) => {
         if (targets.length > 1) {
@@ -1731,7 +1734,7 @@ function unifiedElkToSvelteFlow(
                 // Branch point should be at a consistent Y below the source
                 // Use the source bottom + GLOBAL_MARGIN as the branch point
                 const branchY = sourcePos.y + sourcePos.height + GLOBAL_MARGIN;
-                
+
                 if (!confluencePoints.has(sourceId)) {
                     confluencePoints.set(sourceId, {});
                 }
@@ -1739,7 +1742,7 @@ function unifiedElkToSvelteFlow(
             }
         }
     });
-    
+
     // Calculate join points for nodes with multiple incoming edges
     edgesByTarget.forEach((sources, targetId) => {
         if (sources.length > 1) {
@@ -1749,11 +1752,11 @@ function unifiedElkToSvelteFlow(
                 // BUT it must be BELOW the maximum effective exit Y of all source nodes
                 // This ensures edges that exit groups can still reach the join point
                 const maxEffectiveExitY = Math.max(...sources.map(s => s.effectiveExitY));
-                
+
                 // Join Y is the max of: (target top - margin) and (max exit Y + small gap)
                 const idealJoinY = targetPos.y - GLOBAL_MARGIN;
                 const joinY = Math.max(idealJoinY, maxEffectiveExitY + 10);
-                
+
                 // Only set joinY if it's still above the target
                 if (joinY < targetPos.y) {
                     if (!confluencePoints.has(targetId)) {
@@ -1764,7 +1767,7 @@ function unifiedElkToSvelteFlow(
             }
         }
     });
-    
+
     // Update the confluence points store
     confluencePointsStore.set(confluencePoints);
 

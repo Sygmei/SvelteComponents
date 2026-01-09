@@ -38,11 +38,13 @@
     });
 
     // Check if this edge is connected to the hovered node
-    $: isHighlighted = hoveredNode !== null && (source === hoveredNode || target === hoveredNode);
+    $: isHighlighted =
+        hoveredNode !== null &&
+        (source === hoveredNode || target === hoveredNode);
 
     // Compute dynamic style based on highlight state
-    $: computedStyle = isHighlighted 
-        ? `${style || ''}; stroke: #3b82f6; stroke-width: 3; filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.6));`
+    $: computedStyle = isHighlighted
+        ? `${style || ""}; stroke: #3b82f6; stroke-width: 3; filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.6));`
         : style;
 
     // Get the group hierarchy for a node (returns array from innermost to outermost)
@@ -142,12 +144,12 @@
                 const exitPortKey = `${exitGroupId}-exit`;
                 const exitPort = ports.get(exitPortKey);
                 const exitBox = boxMap.get(exitGroupId);
-                
+
                 if (exitPort && exitBox) {
                     // First, go down to just above the exit port (align with bottom of group)
                     const preExitY = exitBox.y + exitBox.height - MARGIN / 2;
                     const lastWaypoint = waypoints[waypoints.length - 1];
-                    
+
                     // Only add preExitY waypoint if we need to move down
                     if (preExitY > lastWaypoint.y) {
                         // Go down on current X
@@ -157,10 +159,13 @@
                             waypoints.push({ x: exitPort.x, y: preExitY });
                         }
                     }
-                    
+
                     // Then go through the exit port (only if different from last waypoint)
                     const currentLast = waypoints[waypoints.length - 1];
-                    if (Math.abs(exitPort.x - currentLast.x) > 1 || Math.abs(exitPort.y - currentLast.y) > 1) {
+                    if (
+                        Math.abs(exitPort.x - currentLast.x) > 1 ||
+                        Math.abs(exitPort.y - currentLast.y) > 1
+                    ) {
                         waypoints.push({ x: exitPort.x, y: exitPort.y });
                     }
                 }
@@ -232,23 +237,35 @@
                     const boxLeftWithMargin = box.x - MARGIN;
                     const boxRightWithMargin = box.x + box.width + MARGIN;
                     // sourceX must be outside this box's X range (with margin)
-                    return sourceX <= boxLeftWithMargin || sourceX >= boxRightWithMargin;
+                    return (
+                        sourceX <= boxLeftWithMargin ||
+                        sourceX >= boxRightWithMargin
+                    );
                 });
 
                 // Also check if targetX can be reached straight
                 const canReachTargetStraight = siblingGroups.every((box) => {
                     const boxLeftWithMargin = box.x - MARGIN;
                     const boxRightWithMargin = box.x + box.width + MARGIN;
-                    return targetX <= boxLeftWithMargin || targetX >= boxRightWithMargin;
+                    return (
+                        targetX <= boxLeftWithMargin ||
+                        targetX >= boxRightWithMargin
+                    );
                 });
 
-                if (canGoStraight && canReachTargetStraight && Math.abs(sourceX - targetX) < MARGIN) {
+                if (
+                    canGoStraight &&
+                    canReachTargetStraight &&
+                    Math.abs(sourceX - targetX) < MARGIN
+                ) {
                     // We can go straight down - no need to turn around sibling groups
                     // Just use a simple turn near the source
                     turnY = sourceY + 20;
                 } else {
                     // There's a sibling group blocking the path - turn above it
-                    const firstSibling = siblingGroups.sort((a, b) => a.y - b.y)[0];
+                    const firstSibling = siblingGroups.sort(
+                        (a, b) => a.y - b.y,
+                    )[0];
                     turnY = firstSibling.y - MARGIN;
                     turnY = Math.max(turnY, sourceY + 20);
                 }
@@ -313,14 +330,14 @@
         // This is possible if both sourceX and targetX are in valid gaps between sibling groups
         const canGoStraightVertical = (() => {
             if (Math.abs(sourceX - targetX) > 1) return false; // X positions must be almost the same
-            
+
             // Find boxes that are in our Y range
             const boxesInYRange = boxesToAvoid.filter((box) => {
                 const boxTop = box.y;
                 const boxBottom = box.y + box.height;
                 return boxBottom > sourceY && boxTop < targetY;
             });
-            
+
             // Check if sourceX is in a valid gap (not inside any box)
             return isInValidGap(sourceX, boxesInYRange);
         })();
@@ -360,7 +377,10 @@
         // If we can go straight vertical, just do it (no avoidance needed)
         if (canGoStraightVertical) {
             // Check if target has a join point
-            if (targetConfluence?.joinY !== undefined && targetConfluence.joinY < targetY) {
+            if (
+                targetConfluence?.joinY !== undefined &&
+                targetConfluence.joinY < targetY
+            ) {
                 // Go to join Y, then to target
                 waypoints.push({ x: sourceX, y: targetConfluence.joinY });
                 waypoints.push({ x: targetX, y: targetConfluence.joinY });
@@ -383,8 +403,8 @@
                 targetX,
                 targetY,
                 boxesToAvoid,
-                waypoints,  // Pass existing waypoints including exit ports
-                targetConfluence,  // Pass target confluence for join point
+                waypoints, // Pass existing waypoints including exit ports
+                targetConfluence, // Pass target confluence for join point
             );
         }
 
@@ -392,14 +412,17 @@
         // Check if target has a join point - if so, use joinY as the turn point for horizontal movement
         // If we're already below joinY, we still need to turn at a consistent point
         let finalTurnY: number;
-        
-        if (targetConfluence?.joinY !== undefined && targetConfluence.joinY < targetY) {
+
+        if (
+            targetConfluence?.joinY !== undefined &&
+            targetConfluence.joinY < targetY
+        ) {
             // Target has a join point - all edges should converge here
             finalTurnY = targetConfluence.joinY;
         } else {
             finalTurnY = turnY;
         }
-        
+
         // Only add down waypoint if we need to move vertically from effective source to finalTurnY
         if (finalTurnY > effectiveSourceY) {
             waypoints.push({ x: effectiveSourceX, y: finalTurnY });
@@ -411,7 +434,7 @@
             waypoints.push({ x: targetX, y: targetY });
             return buildPathFromWaypoints(waypoints);
         }
-        
+
         // Move horizontally to target X if needed
         if (effectiveSourceX !== targetX) {
             waypoints.push({ x: targetX, y: finalTurnY });
@@ -443,8 +466,10 @@
         targetConfluence?: { branchY?: number; joinY?: number },
     ): string {
         const boxes = get(groupBoxesStore);
-        const waypoints: Array<{ x: number; y: number }> = [...existingWaypoints];
-        
+        const waypoints: Array<{ x: number; y: number }> = [
+            ...existingWaypoints,
+        ];
+
         // If no existing waypoints, start with source position
         if (waypoints.length === 0) {
             waypoints.push({ x: srcX, y: srcY });
@@ -474,8 +499,7 @@
             if (containerBox) {
                 // Must stay MARGIN inside the container boundaries
                 minAllowedX = containerBox.x + MARGIN;
-                maxAllowedX =
-                    containerBox.x + containerBox.width - MARGIN;
+                maxAllowedX = containerBox.x + containerBox.width - MARGIN;
             }
         }
 
@@ -557,11 +581,11 @@
 
             // Go around the box using the calculated side
             waypoints.push({ x: finalX, y: currentY });
-            
+
             // KEY FIX: Don't go all the way to boxBottom if target is above boxBottom
             // This prevents the edge from going below the target and then back up
             // Check if the target X is now reachable without going through any more obstacles
-            
+
             if (tgtY < boxBottom && tgtX >= finalX - MARGIN) {
                 // Target is above boxBottom and to the right of our current position
                 // We can go directly to target Y level without going to boxBottom
@@ -578,7 +602,7 @@
         // Connect to target with orthogonal segments
         // If target has a join point, use it for the horizontal turn
         const joinY = targetConfluence?.joinY;
-        
+
         if (joinY !== undefined && joinY < tgtY) {
             // Target has a join point - all edges should converge at this Y
             if (joinY > currentY) {

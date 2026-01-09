@@ -1,7 +1,14 @@
 <script lang="ts">
-    import { Handle, Position } from "@xyflow/svelte";
+    import {
+        Handle,
+        Position,
+        useSvelteFlow,
+        useEdges,
+        useNodes,
+    } from "@xyflow/svelte";
     import { onMount } from "svelte";
-    import { hoveredNodeStore } from "./graphUtils";
+    import { hoveredNodeStore, focusedNodeStore } from "./graphUtils";
+    import { get } from "svelte/store";
 
     interface Props {
         data: {
@@ -15,6 +22,11 @@
     }
 
     let { data, id, selected = false }: Props = $props();
+
+    // Get SvelteFlow instance
+    const { fitBounds } = useSvelteFlow();
+    const edges = useEdges();
+    const nodes = useNodes();
 
     // Theme detection
     let isDark = $state(true);
@@ -40,6 +52,103 @@
 
     function handleMouseLeave() {
         hoveredNodeStore.set(null);
+    }
+
+    function handleGroupClick(e: MouseEvent) {
+        e.stopPropagation();
+
+        const currentFocused = get(focusedNodeStore);
+
+        // If already focused on this node, do nothing - already fit to view
+        if (currentFocused === id) {
+            return;
+        }
+
+        // Find all connected node IDs via edges
+        const connectedNodeIds = new Set<string>([id]);
+
+        for (const edge of edges.current) {
+            if (edge.source === id) {
+                connectedNodeIds.add(edge.target);
+            }
+            if (edge.target === id) {
+                connectedNodeIds.add(edge.source);
+            }
+        }
+
+        // Get the current node
+        const currentNode = nodes.current.find((n) => n.id === id);
+        if (!currentNode) return;
+
+        // Get current node center (this will be the center of our view)
+        const nodeAny = currentNode as any;
+        const currentPos =
+            nodeAny.internals?.positionAbsolute ?? currentNode.position;
+        const currentWidth = currentNode.measured?.width ?? 180;
+        const currentHeight = currentNode.measured?.height ?? 80;
+        const currentCenterX = currentPos.x + currentWidth / 2;
+        const currentCenterY = currentPos.y + currentHeight / 2;
+
+        // Calculate the max distance from current node center to any connected node's edge
+        let maxDistanceX = currentWidth / 2 + 50;
+        let maxDistanceY = currentHeight / 2 + 50;
+
+        for (const nodeId of connectedNodeIds) {
+            if (nodeId === id) continue;
+            const node = nodes.current.find((n) => n.id === nodeId);
+            if (node) {
+                const nAny = node as any;
+                const pos = nAny.internals?.positionAbsolute ?? node.position;
+                const w = node.measured?.width ?? 180;
+                const h = node.measured?.height ?? 80;
+
+                // Calculate distance to the farthest edge of this node
+                const nodeLeft = pos.x;
+                const nodeRight = pos.x + w;
+                const nodeTop = pos.y;
+                const nodeBottom = pos.y + h;
+
+                maxDistanceX = Math.max(
+                    maxDistanceX,
+                    Math.abs(nodeLeft - currentCenterX),
+                    Math.abs(nodeRight - currentCenterX),
+                );
+                maxDistanceY = Math.max(
+                    maxDistanceY,
+                    Math.abs(nodeTop - currentCenterY),
+                    Math.abs(nodeBottom - currentCenterY),
+                );
+            }
+        }
+
+        // Add padding
+        const padding = 60;
+        maxDistanceX += padding;
+        maxDistanceY += padding;
+
+        // Create a bounds rect centered on the clicked node
+        const bounds = {
+            x: currentCenterX - maxDistanceX,
+            y: currentCenterY - maxDistanceY,
+            width: maxDistanceX * 2,
+            height: maxDistanceY * 2,
+        };
+
+        // Debug logging
+        console.debug('[GroupNode] handleGroupClick', {
+            id,
+            currentPos,
+            currentCenter: { x: currentCenterX, y: currentCenterY },
+            bounds,
+        });
+
+        focusedNodeStore.set(id);
+        
+        // fitBounds will center on the provided rect
+        fitBounds(bounds, {
+            padding: 0.1,
+            duration: 400,
+        });
     }
 
     // Generate consistent color based on the root folder name
@@ -131,7 +240,10 @@
         class="group-node w-full h-full rounded-xl border-2 transition-all duration-300 {colors.bg} {colors.border} {selected
             ? 'shadow-lg'
             : ''} flex items-center justify-center gap-3 px-4 hover:opacity-90 cursor-pointer"
-        onclick={handleHeaderClick}
+        onclick={(e) => {
+            handleGroupClick(e);
+            handleHeaderClick(e);
+        }}
         onmouseenter={handleMouseEnter}
         onmouseleave={handleMouseLeave}
     >
@@ -188,7 +300,10 @@
         <!-- Group header (clickable to collapse) -->
         <button
             class="absolute -top-0 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-b-lg px-3 py-1.5 {colors.headerBg} border-x-2 border-b-2 border-dashed {colors.border} hover:opacity-80 transition-opacity cursor-pointer"
-            onclick={handleHeaderClick}
+            onclick={(e) => {
+                handleGroupClick(e);
+                handleHeaderClick(e);
+            }}
             onmouseenter={handleMouseEnter}
             onmouseleave={handleMouseLeave}
         >

@@ -1,8 +1,15 @@
 <script lang="ts">
-    import { Handle, Position } from "@xyflow/svelte";
+    import {
+        Handle,
+        Position,
+        useSvelteFlow,
+        useEdges,
+        useNodes,
+    } from "@xyflow/svelte";
     import type { ProcessNodeData } from "./types";
     import { onMount } from "svelte";
-    import { hoveredNodeStore } from "./graphUtils";
+    import { hoveredNodeStore, focusedNodeStore } from "./graphUtils";
+    import { get } from "svelte/store";
 
     interface Props {
         data: ProcessNodeData;
@@ -11,6 +18,11 @@
     }
 
     let { data, id = "", selected = false }: Props = $props();
+
+    // Get SvelteFlow instance
+    const { fitBounds } = useSvelteFlow();
+    const edges = useEdges();
+    const nodes = useNodes();
 
     // Theme detection
     let isDark = $state(true);
@@ -31,6 +43,115 @@
 
     function handleMouseLeave() {
         hoveredNodeStore.set(null);
+    }
+
+    // Helper function to get absolute position of a node (accounts for parent groups)
+    function getAbsolutePosition(node: any): { x: number; y: number } {
+        // First check if internals.positionAbsolute is available
+        if (node.internals?.positionAbsolute) {
+            return node.internals.positionAbsolute;
+        }
+        
+        // Otherwise, compute by traversing parent chain
+        let absX = node.position.x;
+        let absY = node.position.y;
+        let parentId = node.parentId;
+        
+        while (parentId) {
+            const parent = nodes.current.find(n => n.id === parentId);
+            if (!parent) break;
+            
+            // Add parent's position
+            absX += parent.position.x;
+            absY += parent.position.y;
+            
+            // Check if parent itself has a parent
+            parentId = parent.parentId;
+        }
+        
+        return { x: absX, y: absY };
+    }
+
+    function handleClick() {
+        const currentFocused = get(focusedNodeStore);
+
+        // If already focused on this node, do nothing - already fit to view
+        if (currentFocused === id) {
+            return;
+        }
+
+        // Find all connected node IDs via edges
+        const connectedNodeIds = new Set<string>([id]);
+
+        for (const edge of edges.current) {
+            if (edge.source === id) {
+                connectedNodeIds.add(edge.target);
+            }
+            if (edge.target === id) {
+                connectedNodeIds.add(edge.source);
+            }
+        }
+
+    // Get the current node
+    const currentNode = nodes.current.find(n => n.id === id);
+    if (!currentNode) return;
+
+        // Get current node center (this will be the center of our view)
+        const currentPos = getAbsolutePosition(currentNode);
+        const currentWidth = currentNode.measured?.width ?? 180;
+        const currentHeight = currentNode.measured?.height ?? 80;
+        const currentCenterX = currentPos.x + currentWidth / 2;
+        const currentCenterY = currentPos.y + currentHeight / 2;
+
+        // Calculate the max distance from current node center to any connected node's edge
+        let maxDistanceX = currentWidth / 2 + 50;
+        let maxDistanceY = currentHeight / 2 + 50;
+        
+        for (const nodeId of connectedNodeIds) {
+            if (nodeId === id) continue;
+            const node = nodes.current.find(n => n.id === nodeId);
+            if (node) {
+                const pos = getAbsolutePosition(node);
+                const w = node.measured?.width ?? 180;
+                const h = node.measured?.height ?? 80;
+                
+                // Calculate distance to the farthest edge of this node
+                const nodeLeft = pos.x;
+                const nodeRight = pos.x + w;
+                const nodeTop = pos.y;
+                const nodeBottom = pos.y + h;
+                
+                maxDistanceX = Math.max(maxDistanceX, 
+                    Math.abs(nodeLeft - currentCenterX),
+                    Math.abs(nodeRight - currentCenterX)
+                );
+                maxDistanceY = Math.max(maxDistanceY,
+                    Math.abs(nodeTop - currentCenterY),
+                    Math.abs(nodeBottom - currentCenterY)
+                );
+            }
+        }
+
+        // Add padding
+        const padding = 60;
+        maxDistanceX += padding;
+        maxDistanceY += padding;
+
+        // Create a bounds rect centered on the clicked node
+        const bounds = {
+            x: currentCenterX - maxDistanceX,
+            y: currentCenterY - maxDistanceY,
+            width: maxDistanceX * 2,
+            height: maxDistanceY * 2,
+        };
+
+        focusedNodeStore.set(id);
+        
+        // fitBounds will center on the provided rect
+        fitBounds(bounds, {
+            padding: 0.1,
+            duration: 400,
+        });
     }
 
     const statusConfig = {
@@ -177,6 +298,7 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
     class="process-node group relative w-[180px] rounded-xl border-2 backdrop-blur-sm transition-all duration-300 {config.bgColor} {config.borderColor} {selected
         ? 'shadow-lg ' + config.glow
@@ -184,6 +306,7 @@
     class:scale-105={selected}
     onmouseenter={handleMouseEnter}
     onmouseleave={handleMouseLeave}
+    onclick={handleClick}
 >
     <!-- Main content -->
     <div class="p-3">
