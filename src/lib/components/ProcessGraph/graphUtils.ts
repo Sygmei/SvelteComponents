@@ -1360,22 +1360,22 @@ function unifiedElkToSvelteFlow(
                 collapsed: collapsedGroups.has(id)
             });
 
-            // Calculate entry port (top-center, above the header)
+            // Calculate entry port (top-center, at GLOBAL_MARGIN above the header)
             const entryPortId = `${id}-entry`;
             groupPorts.set(entryPortId, {
                 groupId: id,
                 type: 'entry',
                 x: pos.x + pos.width / 2,
-                y: pos.y - 10 // Just above the group
+                y: pos.y - GLOBAL_MARGIN // MARGIN above the group
             });
 
-            // Calculate exit port (bottom-center, below the group)
+            // Calculate exit port (bottom-center, at GLOBAL_MARGIN below the group)
             const exitPortId = `${id}-exit`;
             groupPorts.set(exitPortId, {
                 groupId: id,
                 type: 'exit',
                 x: pos.x + pos.width / 2,
-                y: pos.y + pos.height + 10 // Just below the group
+                y: pos.y + pos.height + GLOBAL_MARGIN // MARGIN below the group
             });
         }
     });

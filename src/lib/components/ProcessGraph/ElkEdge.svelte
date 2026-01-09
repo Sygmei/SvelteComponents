@@ -27,7 +27,7 @@
     void targetPosition;
     void data;
 
-    const TURN_CLEARANCE = 40; // Minimum distance from group boundary for turns and avoidance paths
+    const MARGIN = 40; // Minimum distance from group boundary for turns, entry/exit ports, and avoidance paths
 
     // Get the group hierarchy for a node (returns array from innermost to outermost)
     function getGroupHierarchy(nodeId: string): string[] {
@@ -124,7 +124,7 @@
                 
                 if (exitPort && exitBox) {
                     // First, go down to just above the exit port (align with bottom of group)
-                    const preExitY = exitBox.y + exitBox.height - TURN_CLEARANCE / 2;
+                    const preExitY = exitBox.y + exitBox.height - MARGIN / 2;
                     const lastWaypoint = waypoints[waypoints.length - 1];
                     
                     // Only add preExitY waypoint if we need to move down
@@ -158,8 +158,8 @@
             const firstEntryGroup = entryGroups[0];
             const entryBox = boxMap.get(firstEntryGroup);
             if (entryBox) {
-                // Turn should be TURN_CLEARANCE above the group
-                turnY = entryBox.y - TURN_CLEARANCE;
+                // Turn should be MARGIN above the group
+                turnY = entryBox.y - MARGIN;
                 // But not above the effective source (after exit waypoints)
                 turnY = Math.max(turnY, effectiveSourceY + 20);
             } else {
@@ -170,7 +170,7 @@
             // Since we've already added exit port waypoints, the turn should be
             // right after the last exit port (which is already in effectiveSourceY)
             // Just add a small offset to create a proper turn
-            turnY = effectiveSourceY + TURN_CLEARANCE;
+            turnY = effectiveSourceY + MARGIN;
             // But not below the target
             turnY = Math.min(turnY, targetY - 20);
         } else if (commonAncestor) {
@@ -194,7 +194,7 @@
             if (siblingGroups.length > 0) {
                 // There's a sibling group in the way - turn above it
                 const firstSibling = siblingGroups.sort((a, b) => a.y - b.y)[0];
-                turnY = firstSibling.y - TURN_CLEARANCE;
+                turnY = firstSibling.y - MARGIN;
                 turnY = Math.max(turnY, sourceY + 20);
             } else {
                 // No obstacles - simple turn at a good distance from source
@@ -210,14 +210,14 @@
                 const boxTop = box.y;
                 const boxBottom = box.y + box.height;
 
-                // If midY is within TURN_CLEARANCE of a box boundary, adjust
-                if (Math.abs(midY - boxTop) < TURN_CLEARANCE) {
-                    adjustedTurnY = boxTop - TURN_CLEARANCE;
-                } else if (Math.abs(midY - boxBottom) < TURN_CLEARANCE) {
-                    adjustedTurnY = boxBottom + TURN_CLEARANCE;
+                // If midY is within MARGIN of a box boundary, adjust
+                if (Math.abs(midY - boxTop) < MARGIN) {
+                    adjustedTurnY = boxTop - MARGIN;
+                } else if (Math.abs(midY - boxBottom) < MARGIN) {
+                    adjustedTurnY = boxBottom + MARGIN;
                 } else if (midY > boxTop && midY < boxBottom) {
                     // Turn would be inside a box - go above it
-                    adjustedTurnY = boxTop - TURN_CLEARANCE;
+                    adjustedTurnY = boxTop - MARGIN;
                 }
             }
 
@@ -245,10 +245,10 @@
         // Check if a smoothstep path (down, across, down) intersects any boxes
         // Use effective source position (after exit port waypoints) for intersection checks
         function pathIntersectsBox(turnY: number, box: GroupBox): boolean {
-            const boxLeft = box.x - TURN_CLEARANCE;
-            const boxRight = box.x + box.width + TURN_CLEARANCE;
-            const boxTop = box.y - TURN_CLEARANCE;
-            const boxBottom = box.y + box.height + TURN_CLEARANCE;
+            const boxLeft = box.x - MARGIN;
+            const boxRight = box.x + box.width + MARGIN;
+            const boxTop = box.y - MARGIN;
+            const boxBottom = box.y + box.height + MARGIN;
 
             // Check vertical segment 1: effectiveSourceX, effectiveSourceY -> effectiveSourceX, turnY
             if (effectiveSourceX > boxLeft && effectiveSourceX < boxRight) {
@@ -356,25 +356,25 @@
             const innermostContainer = containingGroups[0];
             const containerBox = boxes.find((b) => b.id === innermostContainer);
             if (containerBox) {
-                // Must stay TURN_CLEARANCE inside the container boundaries
-                minAllowedX = containerBox.x + TURN_CLEARANCE;
+                // Must stay MARGIN inside the container boundaries
+                minAllowedX = containerBox.x + MARGIN;
                 maxAllowedX =
-                    containerBox.x + containerBox.width - TURN_CLEARANCE;
+                    containerBox.x + containerBox.width - MARGIN;
             }
         }
 
         // Filter to only obstacles that are between source and target vertically
         // and could potentially block our path
         const relevantObstacles = allObstacles.filter((box) => {
-            const boxTop = box.y - TURN_CLEARANCE;
-            const boxBottom = box.y + box.height + TURN_CLEARANCE;
+            const boxTop = box.y - MARGIN;
+            const boxBottom = box.y + box.height + MARGIN;
 
             // Box must be in the Y range we're traversing
             if (boxBottom < srcY || boxTop > tgtY) return false;
 
             // Box must overlap with either srcX or tgtX column, or be between them
-            const boxLeft = box.x - TURN_CLEARANCE;
-            const boxRight = box.x + box.width + TURN_CLEARANCE;
+            const boxLeft = box.x - MARGIN;
+            const boxRight = box.x + box.width + MARGIN;
             const minX = Math.min(srcX, tgtX);
             const maxX = Math.max(srcX, tgtX);
 
@@ -393,10 +393,10 @@
         relevantObstacles.sort((a, b) => a.y - b.y);
 
         for (const box of relevantObstacles) {
-            const boxLeft = box.x - TURN_CLEARANCE;
-            const boxRight = box.x + box.width + TURN_CLEARANCE;
-            const boxTop = box.y - TURN_CLEARANCE;
-            const boxBottom = box.y + box.height + TURN_CLEARANCE;
+            const boxLeft = box.x - MARGIN;
+            const boxRight = box.x + box.width + MARGIN;
+            const boxTop = box.y - MARGIN;
+            const boxBottom = box.y + box.height + MARGIN;
 
             // Check if we actually need to go around this box
             // (our current X position would pass through it)
@@ -417,19 +417,19 @@
             finalX = Math.min(finalX, maxAllowedX);
 
             // Calculate "smart" split point - align with where sibling edges going INTO this group would turn
-            // For edges entering a group, the turn point is: entryBox.y - TURN_CLEARANCE
+            // For edges entering a group, the turn point is: entryBox.y - MARGIN
             // This is the same calculation used in getPath() for entryGroups
-            const siblingTurnY = box.y - TURN_CLEARANCE;
+            const siblingTurnY = box.y - MARGIN;
 
             // Use the sibling turn point if it's above the source with enough space
-            // Otherwise fall back to TURN_CLEARANCE above the box
+            // Otherwise fall back to MARGIN above the box
             let splitY: number;
             if (siblingTurnY > srcY + 20) {
                 // Sibling turn point is safely below the source - use it
                 splitY = siblingTurnY;
             } else {
                 // Sibling turn would be too close to source - use clearance
-                splitY = boxTop - TURN_CLEARANCE;
+                splitY = boxTop - MARGIN;
             }
 
             // Make sure splitY is below current position
@@ -446,7 +446,7 @@
             // This prevents the edge from going below the target and then back up
             // Check if the target X is now reachable without going through any more obstacles
             
-            if (tgtY < boxBottom && tgtX >= finalX - TURN_CLEARANCE) {
+            if (tgtY < boxBottom && tgtX >= finalX - MARGIN) {
                 // Target is above boxBottom and to the right of our current position
                 // We can go directly to target Y level without going to boxBottom
                 currentX = finalX;
