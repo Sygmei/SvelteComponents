@@ -1,6 +1,7 @@
 <script lang="ts">
     import { Handle, Position } from "@xyflow/svelte";
     import { onMount } from "svelte";
+    import { hoveredNodeStore } from "./graphUtils";
 
     interface Props {
         data: {
@@ -31,6 +32,14 @@
     function handleHeaderClick(e: MouseEvent) {
         e.stopPropagation();
         data.onToggleCollapse?.(id);
+    }
+
+    function handleMouseEnter() {
+        hoveredNodeStore.set(id);
+    }
+
+    function handleMouseLeave() {
+        hoveredNodeStore.set(null);
     }
 
     // Generate consistent color based on the root folder name
@@ -117,11 +126,14 @@
 
 {#if isCollapsed}
     <!-- Collapsed state: compact clickable card -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <button
         class="group-node w-full h-full rounded-xl border-2 transition-all duration-300 {colors.bg} {colors.border} {selected
             ? 'shadow-lg'
             : ''} flex items-center justify-center gap-3 px-4 hover:opacity-90 cursor-pointer"
         onclick={handleHeaderClick}
+        onmouseenter={handleMouseEnter}
+        onmouseleave={handleMouseLeave}
     >
         <!-- Expand chevron -->
         <svg
@@ -177,6 +189,8 @@
         <button
             class="absolute -top-0 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-b-lg px-3 py-1.5 {colors.headerBg} border-x-2 border-b-2 border-dashed {colors.border} hover:opacity-80 transition-opacity cursor-pointer"
             onclick={handleHeaderClick}
+            onmouseenter={handleMouseEnter}
+            onmouseleave={handleMouseLeave}
         >
             <svg
                 class="h-4 w-4 {colors.text} transition-transform rotate-90"

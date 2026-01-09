@@ -2,13 +2,15 @@
     import { Handle, Position } from "@xyflow/svelte";
     import type { ProcessNodeData } from "./types";
     import { onMount } from "svelte";
+    import { hoveredNodeStore } from "./graphUtils";
 
     interface Props {
         data: ProcessNodeData;
+        id?: string;
         selected?: boolean;
     }
 
-    let { data, selected = false }: Props = $props();
+    let { data, id = "", selected = false }: Props = $props();
 
     // Theme detection
     let isDark = $state(true);
@@ -22,6 +24,14 @@
         mediaQuery.addEventListener("change", handler);
         return () => mediaQuery.removeEventListener("change", handler);
     });
+
+    function handleMouseEnter() {
+        hoveredNodeStore.set(id);
+    }
+
+    function handleMouseLeave() {
+        hoveredNodeStore.set(null);
+    }
 
     const statusConfig = {
         SUCCESS: {
@@ -166,11 +176,14 @@
     const folderColor = $derived(getFolderColor(groupPath()));
 </script>
 
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
     class="process-node group relative w-[180px] rounded-xl border-2 backdrop-blur-sm transition-all duration-300 {config.bgColor} {config.borderColor} {selected
         ? 'shadow-lg ' + config.glow
         : 'shadow-md'} {isDark ? 'bg-slate-900/80' : 'bg-white/90'}"
     class:scale-105={selected}
+    onmouseenter={handleMouseEnter}
+    onmouseleave={handleMouseLeave}
 >
     <!-- Main content -->
     <div class="p-3">

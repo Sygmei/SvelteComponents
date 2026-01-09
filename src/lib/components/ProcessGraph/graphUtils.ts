@@ -43,6 +43,9 @@ export interface ConfluencePoints {
 }
 export const confluencePointsStore = writable<Map<string, ConfluencePoints>>(new Map());
 
+// Store for currently hovered node - used to highlight connected edges
+export const hoveredNodeStore = writable<string | null>(null);
+
 /**
  * Find the common ancestor group of two groups (or 'root' if none)
  */

@@ -4,6 +4,7 @@
         groupBoxesStore,
         groupPortsStore,
         confluencePointsStore,
+        hoveredNodeStore,
         type GroupBox,
     } from "./graphUtils";
     import { get } from "svelte/store";
@@ -29,6 +30,20 @@
     void data;
 
     const MARGIN = 40; // Minimum distance from group boundary for turns, entry/exit ports, and avoidance paths
+
+    // Subscribe to hovered node store
+    let hoveredNode: string | null = null;
+    hoveredNodeStore.subscribe((value) => {
+        hoveredNode = value;
+    });
+
+    // Check if this edge is connected to the hovered node
+    $: isHighlighted = hoveredNode !== null && (source === hoveredNode || target === hoveredNode);
+
+    // Compute dynamic style based on highlight state
+    $: computedStyle = isHighlighted 
+        ? `${style || ''}; stroke: #3b82f6; stroke-width: 3; filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.6));`
+        : style;
 
     // Get the group hierarchy for a node (returns array from innermost to outermost)
     function getGroupHierarchy(nodeId: string): string[] {
@@ -599,4 +614,4 @@
     $: path = getPath();
 </script>
 
-<BaseEdge {id} {path} {style} {markerEnd} />
+<BaseEdge {id} {path} style={computedStyle} {markerEnd} />
