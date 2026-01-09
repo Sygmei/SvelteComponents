@@ -29,6 +29,14 @@
     const edges = useEdges();
     const nodes = useNodes();
 
+    // Check if node has input/output connections
+    const hasInputConnection = $derived(
+        edges.current.some((edge) => edge.target === id)
+    );
+    const hasOutputConnection = $derived(
+        edges.current.some((edge) => edge.source === id)
+    );
+
     // Theme detection
     let isDark = $state(true);
     
@@ -421,20 +429,24 @@
     </div>
 
     <!-- Handles -->
-    <Handle
-        type="target"
-        position={Position.Top}
-        class="!w-3 !h-3 !border-2 !-top-1.5 transition-all {isDark
-            ? '!bg-white/30 !border-white/50 hover:!bg-white/60'
-            : '!bg-slate-400/50 !border-slate-400 hover:!bg-slate-500'}"
-    />
-    <Handle
-        type="source"
-        position={Position.Bottom}
-        class="!w-3 !h-3 !border-2 !-bottom-1.5 transition-all {isDark
-            ? '!bg-white/30 !border-white/50 hover:!bg-white/60'
-            : '!bg-slate-400/50 !border-slate-400 hover:!bg-slate-500'}"
-    />
+    {#if hasInputConnection}
+        <Handle
+            type="target"
+            position={Position.Top}
+            class="!w-3 !h-3 !border-2 !-top-1.5 transition-all {isDark
+                ? '!bg-white/30 !border-white/50 hover:!bg-white/60'
+                : '!bg-slate-400/50 !border-slate-400 hover:!bg-slate-500'}"
+        />
+    {/if}
+    {#if hasOutputConnection}
+        <Handle
+            type="source"
+            position={Position.Bottom}
+            class="!w-3 !h-3 !border-2 !-bottom-1.5 transition-all {isDark
+                ? '!bg-white/30 !border-white/50 hover:!bg-white/60'
+                : '!bg-slate-400/50 !border-slate-400 hover:!bg-slate-500'}"
+        />
+    {/if}
 </div>
 
 <style>
