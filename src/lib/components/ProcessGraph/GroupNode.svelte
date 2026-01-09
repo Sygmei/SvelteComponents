@@ -240,10 +240,7 @@
         class="group-node w-full h-full rounded-xl border-2 transition-all duration-300 {colors.bg} {colors.border} {selected
             ? 'shadow-lg'
             : ''} flex items-center justify-center gap-3 px-4 hover:opacity-90 cursor-pointer"
-        onclick={(e) => {
-            handleGroupClick(e);
-            handleHeaderClick(e);
-        }}
+        onclick={handleHeaderClick}
         onmouseenter={handleMouseEnter}
         onmouseleave={handleMouseLeave}
     >
@@ -300,10 +297,7 @@
         <!-- Group header (clickable to collapse) -->
         <button
             class="absolute -top-0 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-b-lg px-3 py-1.5 {colors.headerBg} border-x-2 border-b-2 border-dashed {colors.border} hover:opacity-80 transition-opacity cursor-pointer"
-            onclick={(e) => {
-                handleGroupClick(e);
-                handleHeaderClick(e);
-            }}
+            onclick={handleHeaderClick}
             onmouseenter={handleMouseEnter}
             onmouseleave={handleMouseLeave}
         >
