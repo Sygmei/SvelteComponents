@@ -4,6 +4,7 @@
         Controls,
         Background,
         MiniMap,
+        SmoothStepEdge,
         type Node,
         type Edge,
         BackgroundVariant,
@@ -12,13 +13,12 @@
 
     import ProcessNode from "./ProcessNode.svelte";
     import GroupNode from "./GroupNode.svelte";
-    import ElkEdge from "./ElkEdge.svelte";
-    import FitViewOnChange from "./FitViewOnChange.svelte";
     import StatusCountWidget from "./StatusCountWidget.svelte";
     import {
-        processesToFlow,
         processesToFlowAsync,
         getProcessStats,
+        type ElkAlgorithm,
+        type ElkDirection,
     } from "./graphUtils";
     import type { ProcessGraphData, RadialMenuAction } from "./types";
     import { onMount } from "svelte";
@@ -62,6 +62,8 @@
         showStats?: boolean;
         fitViewOnLoad?: boolean;
         radialActions?: RadialMenuAction[];
+        layoutAlgorithm?: ElkAlgorithm;
+        layoutDirection?: ElkDirection;
     }
 
     let {
@@ -71,6 +73,8 @@
         showStats = true,
         fitViewOnLoad = true,
         radialActions = defaultRadialActions,
+        layoutAlgorithm = "layered",
+        layoutDirection = "DOWN",
     }: Props = $props();
 
     const nodeTypes = {
@@ -79,13 +83,10 @@
     };
 
     const edgeTypes = {
-        elk: ElkEdge,
+        elk: SmoothStepEdge,
     };
 
-    // Use sync layout as initial fallback, then update with ELK async
-    let { nodes: initialNodes, edges: initialEdges } = $derived(
-        processesToFlow(data.processes),
-    );
+    // Stats derived from data
     let stats = $derived(getProcessStats(data.processes));
 
     // Theme detection
@@ -133,6 +134,8 @@
         const collapsed = collapsedGroups;
         const _version = layoutVersion; // Track for reactivity
         const _hideSkipped = hideSkipped; // Track for reactivity
+        const _algorithm = layoutAlgorithm; // Track for reactivity
+        const _direction = layoutDirection; // Track for reactivity
 
         // Filter skipped processes if enabled, with edge bridging
         let processes = allProcesses;
@@ -180,7 +183,10 @@
         }
 
         // Run async ELK layout with collapsed groups
-        processesToFlowAsync(processes, collapsed)
+        processesToFlowAsync(processes, collapsed, {
+            algorithm: _algorithm,
+            direction: _direction,
+        })
             .then(({ nodes, edges }) => {
                 // Add callbacks and data to nodes
                 flowNodes = nodes.map((node) => {
@@ -208,31 +214,9 @@
                 flowEdges = edges;
                 isInitialLayoutReady = true;
             })
-            .catch(() => {
-                // Fallback to sync layout if ELK fails
-                flowNodes = initialNodes.map((node) => {
-                    if (node.type === "group") {
-                        return {
-                            ...node,
-                            draggable: false,
-                            data: {
-                                ...node.data,
-                                collapsed: collapsed.has(node.id),
-                                onToggleCollapse: handleToggleCollapse,
-                            },
-                        };
-                    }
-                    // Process nodes get radial menu config
-                    return {
-                        ...node,
-                        draggable: false,
-                        data: {
-                            ...node.data,
-                            radialActions,
-                        },
-                    };
-                });
-                flowEdges = initialEdges;
+            .catch((err) => {
+                // Log error if ELK fails
+                console.error("ELK layout failed:", err);
                 isInitialLayoutReady = true;
             });
     });
@@ -357,9 +341,6 @@
                     : "!bg-white/80 !border-slate-200 !rounded-xl !shadow-xl"}
             />
         {/if}
-
-        <!-- Auto fit view when hideSkipped changes -->
-        <FitViewOnChange trigger={hideSkipped} />
     </SvelteFlow>
 
     <!-- Gradient overlays for depth -->
