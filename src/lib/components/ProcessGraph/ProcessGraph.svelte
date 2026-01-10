@@ -4,7 +4,6 @@
         Controls,
         Background,
         MiniMap,
-        SmoothStepEdge,
         type Node,
         type Edge,
         BackgroundVariant,
@@ -13,6 +12,7 @@
 
     import ProcessNode from "./ProcessNode.svelte";
     import GroupNode from "./GroupNode.svelte";
+    import HighlightEdge from "./HighlightEdge.svelte";
     import StatusCountWidget from "./StatusCountWidget.svelte";
     import {
         processesToFlowAsync,
@@ -83,7 +83,7 @@
     };
 
     const edgeTypes = {
-        elk: SmoothStepEdge,
+        elk: HighlightEdge,
     };
 
     // Stats derived from data

@@ -63,6 +63,16 @@
         highlightedStatus !== null && data.status !== highlightedStatus,
     );
 
+    // Sync selected state with focusedNodeStore
+    $effect(() => {
+        if (selected) {
+            focusedNodeStore.set(id);
+        } else {
+            // Clear focus when this node is deselected (only if it was focused)
+            focusedNodeStore.update((current) => current === id ? null : current);
+        }
+    });
+
     onMount(() => {
         isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
         const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
