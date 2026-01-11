@@ -3,8 +3,6 @@
     import type {
         ProcessGraphData,
         RadialMenuAction,
-        ElkAlgorithm,
-        ElkDirection,
     } from "$lib/components/ProcessGraph";
     import { onMount } from "svelte";
 
@@ -16,8 +14,6 @@
     let showMiniMap = $state(true);
     let showControls = $state(true);
     let showStats = $state(true);
-    let layoutAlgorithm = $state<ElkAlgorithm>("layered");
-    let layoutDirection = $state<ElkDirection>("DOWN");
 
     // Custom radial menu actions with individual callbacks
     const radialActions: RadialMenuAction[] = [
@@ -148,48 +144,6 @@
                 />
                 Show Stats
             </label>
-
-            <div class="h-6 w-px bg-slate-600"></div>
-
-            <label
-                class="flex items-center gap-2 text-sm {isDark
-                    ? 'text-white'
-                    : 'text-slate-700'}"
-            >
-                Algorithm:
-                <select
-                    bind:value={layoutAlgorithm}
-                    class="rounded border px-2 py-1 text-sm {isDark
-                        ? 'bg-slate-700 border-white/20 text-white'
-                        : 'bg-white border-slate-300 text-slate-700'}"
-                >
-                    <option value="layered">Layered</option>
-                    <option value="force">Force</option>
-                    <option value="mrtree">MrTree</option>
-                    <option value="radial">Radial</option>
-                    <option value="stress">Stress</option>
-                    <option value="box">Box</option>
-                </select>
-            </label>
-
-            <label
-                class="flex items-center gap-2 text-sm {isDark
-                    ? 'text-white'
-                    : 'text-slate-700'}"
-            >
-                Direction:
-                <select
-                    bind:value={layoutDirection}
-                    class="rounded border px-2 py-1 text-sm {isDark
-                        ? 'bg-slate-700 border-white/20 text-white'
-                        : 'bg-white border-slate-300 text-slate-700'}"
-                >
-                    <option value="DOWN">Down</option>
-                    <option value="UP">Up</option>
-                    <option value="LEFT">Left</option>
-                    <option value="RIGHT">Right</option>
-                </select>
-            </label>
         </div>
 
         <!-- Graph Container -->
@@ -200,8 +154,6 @@
                 {showControls}
                 {showStats}
                 {radialActions}
-                {layoutAlgorithm}
-                {layoutDirection}
             />
         </div>
 

@@ -39,7 +39,7 @@
     // Check if this edge is connected to the active node (hovered or focused)
     const activeNode = $derived(hoveredNode || focusedNode);
     const isConnected = $derived(
-        activeNode !== null && (source === activeNode || target === activeNode)
+        activeNode !== null && (source === activeNode || target === activeNode),
     );
 
     // Check if any node is active but this edge is not connected
@@ -48,7 +48,7 @@
     // Compute final style
     const computedStyle = $derived.by(() => {
         let finalStyle = style || "";
-        
+
         if (isConnected) {
             // Highlight connected edges with blue color
             finalStyle = finalStyle.replace(/stroke:\s*[^;]+;?/, "");
@@ -60,7 +60,7 @@
             finalStyle = finalStyle.replace(/opacity:\s*[\d.]+;?/, "");
             finalStyle += " opacity: 0.15;";
         }
-        
+
         return finalStyle.trim();
     });
 </script>

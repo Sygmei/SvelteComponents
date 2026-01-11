@@ -14,12 +14,7 @@
     import GroupNode from "./GroupNode.svelte";
     import HighlightEdge from "./HighlightEdge.svelte";
     import StatusCountWidget from "./StatusCountWidget.svelte";
-    import {
-        processesToFlowAsync,
-        getProcessStats,
-        type ElkAlgorithm,
-        type ElkDirection,
-    } from "./graphUtils";
+    import { processesToFlowAsync, getProcessStats } from "./graphUtils";
     import type { ProcessGraphData, RadialMenuAction } from "./types";
     import { onMount } from "svelte";
 
@@ -62,8 +57,6 @@
         showStats?: boolean;
         fitViewOnLoad?: boolean;
         radialActions?: RadialMenuAction[];
-        layoutAlgorithm?: ElkAlgorithm;
-        layoutDirection?: ElkDirection;
     }
 
     let {
@@ -73,8 +66,6 @@
         showStats = true,
         fitViewOnLoad = true,
         radialActions = defaultRadialActions,
-        layoutAlgorithm = "layered",
-        layoutDirection = "DOWN",
     }: Props = $props();
 
     const nodeTypes = {
@@ -134,8 +125,6 @@
         const collapsed = collapsedGroups;
         const _version = layoutVersion; // Track for reactivity
         const _hideSkipped = hideSkipped; // Track for reactivity
-        const _algorithm = layoutAlgorithm; // Track for reactivity
-        const _direction = layoutDirection; // Track for reactivity
 
         // Filter skipped processes if enabled, with edge bridging
         let processes = allProcesses;
@@ -183,10 +172,7 @@
         }
 
         // Run async ELK layout with collapsed groups
-        processesToFlowAsync(processes, collapsed, {
-            algorithm: _algorithm,
-            direction: _direction,
-        })
+        processesToFlowAsync(processes, collapsed)
             .then(({ nodes, edges }) => {
                 // Add callbacks and data to nodes
                 flowNodes = nodes.map((node) => {
