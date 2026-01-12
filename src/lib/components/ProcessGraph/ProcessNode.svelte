@@ -15,6 +15,8 @@
     } from "./graphUtils";
     import { get } from "svelte/store";
     import RadialMenu from "./RadialMenu.svelte";
+    import { setActiveModal } from "$lib/components/Modal/ModalStore.svelte";
+    import ErrorModal from "$lib/components/Modal/ErrorModal.svelte";
 
     interface ExtendedProcessNodeData extends ProcessNodeData {
         radialActions?: RadialMenuAction[];
@@ -539,9 +541,9 @@
         </div>
 
         <!-- Status badge -->
-        <div class="mt-2 flex items-center justify-between">
+        <div class="mt-2 flex items-center gap-2">
             <span
-                class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider {config.bgColor} {config.textColor} border {config.borderColor}"
+                class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider {config.bgColor} {config.textColor} border {config.borderColor} flex-shrink-0"
             >
                 <span
                     class="h-1.5 w-1.5 rounded-full {config.iconBg} {data.status ===
@@ -551,16 +553,24 @@
                 ></span>
                 {data.status}
             </span>
+            {#if data.errorMessage}
+                <button
+                    type="button"
+                    class="flex-1 min-w-0 rounded bg-red-500/20 border border-red-500/50 px-1.5 py-0.5 text-[10px] text-red-400 text-left cursor-pointer hover:bg-red-500/30 transition-colors"
+                    onclick={(e) => {
+                        e.stopPropagation();
+                        setActiveModal({
+                            modal: ErrorModal,
+                            props: {
+                                errorMessage: data.errorMessage || ''
+                            }
+                        });
+                    }}
+                >
+                    <span class="line-clamp-1">⚠ {data.errorMessage}</span>
+                </button>
+            {/if}
         </div>
-
-        <!-- Error message tooltip trigger -->
-        {#if data.errorMessage}
-            <div
-                class="mt-2 rounded-lg bg-red-500/20 border border-red-500/50 p-2 text-[10px] text-red-400 line-clamp-2"
-            >
-                ⚠ {data.errorMessage}
-            </div>
-        {/if}
     </div>
 
     <!-- Handles -->
