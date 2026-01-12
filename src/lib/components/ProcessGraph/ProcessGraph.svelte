@@ -12,14 +12,9 @@
 
     import ProcessNode from "./ProcessNode.svelte";
     import GroupNode from "./GroupNode.svelte";
-    import ElkEdge from "./ElkEdge.svelte";
-    import FitViewOnChange from "./FitViewOnChange.svelte";
+    import HighlightEdge from "./HighlightEdge.svelte";
     import StatusCountWidget from "./StatusCountWidget.svelte";
-    import {
-        processesToFlow,
-        processesToFlowAsync,
-        getProcessStats,
-    } from "./graphUtils";
+    import { processesToFlowAsync, getProcessStats } from "./graphUtils";
     import type { ProcessGraphData, RadialMenuAction } from "./types";
     import { onMount } from "svelte";
 
@@ -79,13 +74,10 @@
     };
 
     const edgeTypes = {
-        elk: ElkEdge,
+        elk: HighlightEdge,
     };
 
-    // Use sync layout as initial fallback, then update with ELK async
-    let { nodes: initialNodes, edges: initialEdges } = $derived(
-        processesToFlow(data.processes),
-    );
+    // Stats derived from data
     let stats = $derived(getProcessStats(data.processes));
 
     // Theme detection
@@ -208,31 +200,9 @@
                 flowEdges = edges;
                 isInitialLayoutReady = true;
             })
-            .catch(() => {
-                // Fallback to sync layout if ELK fails
-                flowNodes = initialNodes.map((node) => {
-                    if (node.type === "group") {
-                        return {
-                            ...node,
-                            draggable: false,
-                            data: {
-                                ...node.data,
-                                collapsed: collapsed.has(node.id),
-                                onToggleCollapse: handleToggleCollapse,
-                            },
-                        };
-                    }
-                    // Process nodes get radial menu config
-                    return {
-                        ...node,
-                        draggable: false,
-                        data: {
-                            ...node.data,
-                            radialActions,
-                        },
-                    };
-                });
-                flowEdges = initialEdges;
+            .catch((err) => {
+                // Log error if ELK fails
+                console.error("ELK layout failed:", err);
                 isInitialLayoutReady = true;
             });
     });
@@ -357,9 +327,6 @@
                     : "!bg-white/80 !border-slate-200 !rounded-xl !shadow-xl"}
             />
         {/if}
-
-        <!-- Auto fit view when hideSkipped changes -->
-        <FitViewOnChange trigger={hideSkipped} />
     </SvelteFlow>
 
     <!-- Gradient overlays for depth -->

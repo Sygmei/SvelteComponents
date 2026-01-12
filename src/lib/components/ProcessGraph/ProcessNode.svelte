@@ -47,6 +47,10 @@
     // Radial menu state
     let showRadialMenu = $state(false);
 
+    // Tooltip state
+    let showTooltip = $state(false);
+    let nodeElement: HTMLElement;
+
     // Status highlighting from stats panel hover
     let highlightedStatus = $state<string | null>(null);
     highlightedStatusStore.subscribe((value) => {
@@ -63,6 +67,18 @@
         highlightedStatus !== null && data.status !== highlightedStatus,
     );
 
+    // Sync selected state with focusedNodeStore
+    $effect(() => {
+        if (selected) {
+            focusedNodeStore.set(id);
+        } else {
+            // Clear focus when this node is deselected (only if it was focused)
+            focusedNodeStore.update((current) =>
+                current === id ? null : current,
+            );
+        }
+    });
+
     onMount(() => {
         isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
         const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -73,15 +89,93 @@
 
         return () => {
             mediaQuery.removeEventListener("change", handler);
+            // Clean up tooltip if component unmounts while showing
+            if (tooltipEl) {
+                tooltipEl.remove();
+            }
+            if (tooltipTimeout) {
+                clearTimeout(tooltipTimeout);
+            }
         };
     });
 
+    // Create tooltip element in body for proper z-index
+    let tooltipEl: HTMLDivElement | null = null;
+    let tooltipTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    function createTooltip() {
+        if (!tooltipEl) {
+            tooltipEl = document.createElement("div");
+            tooltipEl.className = "process-node-tooltip";
+            document.body.appendChild(tooltipEl);
+        }
+    }
+
+    function updateTooltip() {
+        if (!nodeElement || !tooltipEl) return;
+
+        const rect = nodeElement.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top - 8;
+
+        tooltipEl.style.cssText = `
+            position: fixed;
+            left: ${x}px;
+            top: ${y}px;
+            transform: translate(-50%, -100%);
+            z-index: 99999;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            pointer-events: none;
+            background: ${isDark ? "#334155" : "#1e293b"};
+            color: white;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        `;
+        tooltipEl.textContent = data.label;
+    }
+
+    function removeTooltip() {
+        if (tooltipEl) {
+            tooltipEl.remove();
+            tooltipEl = null;
+        }
+    }
+
     function handleMouseEnter() {
         hoveredNodeStore.set(id);
+
+        // Clear any existing timeout
+        if (tooltipTimeout) {
+            clearTimeout(tooltipTimeout);
+        }
+
+        // Delay tooltip appearance by 1 second
+        tooltipTimeout = setTimeout(() => {
+            showTooltip = true;
+            createTooltip();
+            requestAnimationFrame(updateTooltip);
+        }, 1000);
+    }
+
+    function handleMouseMove() {
+        if (showTooltip && tooltipEl) {
+            updateTooltip();
+        }
     }
 
     function handleMouseLeave() {
         hoveredNodeStore.set(null);
+        showTooltip = false;
+        removeTooltip();
+
+        // Clear pending tooltip timeout
+        if (tooltipTimeout) {
+            clearTimeout(tooltipTimeout);
+            tooltipTimeout = null;
+        }
     }
 
     // Default radial menu items (fallback if not provided via props)
@@ -409,7 +503,9 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_mouse_events_have_key_events -->
 <div
+    bind:this={nodeElement}
     class="process-node group relative w-[180px] rounded-xl border-2 backdrop-blur-sm transition-all duration-300 {config.bgColor} {config.borderColor} {selected
         ? 'shadow-lg ' + config.glow
         : 'shadow-md'} {isDark
@@ -417,6 +513,7 @@
         : 'bg-white/90'} {highlightClasses()}"
     class:scale-105={selected && !isStatusHighlighted}
     onmouseenter={handleMouseEnter}
+    onmousemove={handleMouseMove}
     onmouseleave={handleMouseLeave}
     onclick={handleClick}
 >
@@ -436,7 +533,6 @@
                 class="font-semibold text-sm leading-tight truncate {isDark
                     ? 'text-white'
                     : 'text-slate-800'}"
-                title={data.label}
             >
                 {shortName()}
             </span>
