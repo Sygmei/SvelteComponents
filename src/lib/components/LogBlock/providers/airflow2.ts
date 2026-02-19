@@ -8,16 +8,16 @@ function normalizeAirflow2Timestamp(timestamp: string): string {
 }
 
 function parseWrappedGroupMarker(line: string): LogProviderParseResult | null {
-  const wrappedGroupMatch = line.match(/^[A-Za-z]+\s+-\s+(::group::.*|::endgroup::)\s*$/);
+  const wrappedGroupMatch = line.match(/^\s*[A-Za-z]+\s+-\s+(::group::.*|::endgroup::)\s*$/);
   if (!wrappedGroupMatch) {
     return null;
   }
 
-  return parseGroupMarkers(wrappedGroupMatch[1]);
+  return parseGroupMarkers(wrappedGroupMatch[1].trimStart());
 }
 
 function parseAirflow2Line(line: string): LogProviderParseResult {
-  const groupedLine = parseGroupMarkers(line);
+  const groupedLine = parseGroupMarkers(line.trimStart());
   if (groupedLine) {
     return groupedLine;
   }
@@ -32,7 +32,7 @@ function parseAirflow2Line(line: string): LogProviderParseResult {
   );
 
   if (parsedMatch?.groups) {
-    const groupedMessage = parseGroupMarkers(parsedMatch.groups.message);
+    const groupedMessage = parseGroupMarkers(parsedMatch.groups.message.trimStart());
     if (groupedMessage) {
       return groupedMessage;
     }
