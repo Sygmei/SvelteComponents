@@ -29,15 +29,24 @@
   let levelDropdownElement = $state<HTMLDivElement | undefined>(undefined);
 
   function splitInputLines(input: string | string[]): string[] {
-    if (Array.isArray(input)) {
-      return input.flatMap((line) => line.split(/\r?\n/));
+    const lines = Array.isArray(input)
+      ? input.flatMap((line) => line.split(/\r?\n/))
+      : !input
+        ? []
+        : input.split(/\r?\n/);
+
+    let start = 0;
+    let end = lines.length - 1;
+
+    while (start <= end && lines[start].trim().length === 0) {
+      start += 1;
     }
 
-    if (!input) {
-      return [];
+    while (end >= start && lines[end].trim().length === 0) {
+      end -= 1;
     }
 
-    return input.split(/\r?\n/);
+    return lines.slice(start, end + 1);
   }
 
   function makeEntryId(prefix: string, lineIndex: number, depth: number): string {
