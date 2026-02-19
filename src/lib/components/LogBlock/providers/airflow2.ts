@@ -1,5 +1,11 @@
 import type { LogProvider, LogProviderParseResult } from "../types.js";
-import { defaultLinkify, parseGroupMarkers } from "./shared.js";
+import {
+  AIRFLOW_LEVEL_ORDER,
+  defaultLinkify,
+  displayAirflowLevel,
+  normalizeAirflowLevel,
+  parseGroupMarkers,
+} from "./shared.js";
 import type { StructuredLogProvider } from "./types.js";
 
 function normalizeAirflow2Timestamp(timestamp: string): string {
@@ -7,47 +13,61 @@ function normalizeAirflow2Timestamp(timestamp: string): string {
   return timestamp.replace(/([+-]\d{2})(\d{2})$/, "$1:$2");
 }
 
-function parseWrappedGroupMarker(line: string): LogProviderParseResult | null {
-  const wrappedGroupMatch = line.match(/^\s*[A-Za-z]+\s+-\s+(::group::.*|::endgroup::)\s*$/);
-  if (!wrappedGroupMatch) {
-    return null;
-  }
-
-  return parseGroupMarkers(wrappedGroupMatch[1].trimStart());
-}
-
 function parseAirflow2Line(line: string): LogProviderParseResult {
-  const groupedLine = parseGroupMarkers(line.trimStart());
+  const trimmedLine = line.trimStart();
+  const groupedLine = parseGroupMarkers(trimmedLine);
   if (groupedLine) {
     return groupedLine;
   }
 
-  const wrappedGroupLine = parseWrappedGroupMarker(line);
-  if (wrappedGroupLine) {
-    return wrappedGroupLine;
-  }
-
+  // Airflow2 lines can miss one or more parts (timestamp/location/level).
   const parsedMatch = line.match(
-    /^\[(?<timestamp>[^\]]+)\]\s+\{(?<location>[^}]+)\}\s+(?<level>[A-Za-z]+)\s+-\s+(?<message>.*)$/
+    /^\s*(?:\[(?<timestamp>[^\]]+)\]\s*)?(?:\{(?<location>[^}]+)\}\s*)?(?:(?<level>[A-Za-z]+)\s*-\s*)?(?<message>.*)$/
   );
 
   if (parsedMatch?.groups) {
-    const groupedMessage = parseGroupMarkers(parsedMatch.groups.message.trimStart());
+    const timestampRaw = parsedMatch.groups.timestamp?.trim();
+    const location = parsedMatch.groups.location?.trim();
+    const level = parsedMatch.groups.level?.trim();
+
+    let message = parsedMatch.groups.message ?? "";
+    // Handle variants like "[ts] {loc} - message" (no level, but with separator).
+    if (!level) {
+      message = message.replace(/^\s*-\s*/, "");
+    }
+    message = message.trimStart();
+
+    const groupedMessage = parseGroupMarkers(message);
     if (groupedMessage) {
       return groupedMessage;
     }
 
-    const normalizedTimestamp = normalizeAirflow2Timestamp(parsedMatch.groups.timestamp);
-    const location = parsedMatch.groups.location;
+    const hasAnyStructuredPart = Boolean(timestampRaw || location || level);
+    if (!hasAnyStructuredPart) {
+      return {
+        type: "line",
+        line: {
+          raw: line,
+          message: trimmedLine,
+        },
+      };
+    }
+
+    const normalizedTimestamp = timestampRaw
+      ? normalizeAirflow2Timestamp(timestampRaw)
+      : undefined;
+    const messageWithLocation = location
+      ? `{${location}}${message ? ` ${message}` : ""}`
+      : message;
 
     return {
       type: "line",
       line: {
         raw: line,
         timestamp: normalizedTimestamp,
-        level: parsedMatch.groups.level,
+        level: level || undefined,
         // Display {file.py:line} in the message while keeping level in the badge.
-        message: `{${location}} ${parsedMatch.groups.message}`,
+        message: messageWithLocation,
       },
     };
   }
@@ -56,17 +76,17 @@ function parseAirflow2Line(line: string): LogProviderParseResult {
     type: "line",
     line: {
       raw: line,
-      message: line,
+      message: trimmedLine,
     },
   };
 }
 
 const airflow2ProviderImpl: LogProvider = {
   parseLine: parseAirflow2Line,
-  normalizeLevel: (level: string) => level.toUpperCase(),
+  normalizeLevel: normalizeAirflowLevel,
   linkify: (text: string) => defaultLinkify(text),
-  levelOrder: ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-  displayLevel: (level: string) => level,
+  levelOrder: AIRFLOW_LEVEL_ORDER,
+  displayLevel: displayAirflowLevel,
 };
 
 export const airflow2Provider: StructuredLogProvider = {

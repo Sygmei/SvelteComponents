@@ -17,6 +17,8 @@
     title = "Logs",
     emptyMessage = "No logs to display.",
     showLevelFilter = true,
+    showDownloadButton = true,
+    downloadFileName = undefined,
     initialGroupsCollapsed = false,
     selectedLevels = $bindable<string[]>([]),
     className = "",
@@ -125,6 +127,14 @@
   }
 
   const parsedData = $derived(parseEntries(logs, provider));
+  const rawLogsText = $derived.by(() => {
+    if (Array.isArray(logs)) {
+      return logs.join("\n");
+    }
+
+    return logs || "";
+  });
+  const hasRawLogs = $derived(rawLogsText.length > 0);
 
   const levelOptions = $derived.by(() => {
     const levels = [...parsedData.levels];
@@ -300,6 +310,39 @@
     const normalized = provider.normalizeLevel?.(level) ?? level;
     return provider.displayLevel?.(normalized) ?? normalized;
   }
+
+  function resolveDownloadFileName(): string {
+    if (downloadFileName?.trim()) {
+      return downloadFileName.trim();
+    }
+
+    const fallback = title
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+
+    return `${fallback || "logs"}.log`;
+  }
+
+  function downloadRawLogs(): void {
+    if (!rawLogsText) {
+      return;
+    }
+
+    const blob = new Blob([rawLogsText], { type: "text/plain;charset=utf-8" });
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+
+    anchor.href = objectUrl;
+    anchor.download = resolveDownloadFileName();
+    anchor.style.display = "none";
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+  }
 </script>
 
 <div
@@ -308,84 +351,98 @@
   <header class="flex flex-wrap items-center justify-between gap-2">
     <h2 class="text-xs font-semibold text-surface-100 tracking-wide uppercase">{title}</h2>
 
-    {#if showLevelFilter && levelOptions.length > 0}
-      <div class="relative" bind:this={levelDropdownElement}>
+    <div class="flex items-center gap-2">
+      {#if showDownloadButton}
         <button
           type="button"
-          class={`inline-flex items-center gap-2 text-[11px] px-2.5 py-1 rounded-md border transition-colors ${
-            selectedLevels.length === 0
-              ? "bg-primary-600/15 text-primary-200 border-primary-600/35"
-              : "bg-surface-800 text-surface-200 border-surface-600 hover:bg-surface-700"
-          }`}
-          onclick={() => (levelDropdownOpen = !levelDropdownOpen)}
-          aria-haspopup="menu"
-          aria-expanded={levelDropdownOpen}
+          class="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-md border bg-surface-800 text-surface-200 border-surface-600 hover:bg-surface-700 disabled:opacity-45 disabled:cursor-not-allowed"
+          onclick={downloadRawLogs}
+          disabled={!hasRawLogs}
         >
-          <span class="uppercase tracking-wide">Levels</span>
-          <span class="text-surface-300 normal-case">{levelFilterLabel()}</span>
-          <span class={`text-surface-400 transition-transform ${levelDropdownOpen ? "rotate-180" : ""}`}>▾</span>
+          <span class="text-xs leading-none">⇩</span>
+          <span>Download raw</span>
         </button>
+      {/if}
 
-        {#if levelDropdownOpen}
-          <div
-            class="absolute right-0 top-full mt-2 w-52 rounded-lg border border-surface-600 bg-surface-900 shadow-xl z-20 overflow-hidden"
-            role="menu"
-            aria-label="Filter levels"
+      {#if showLevelFilter && levelOptions.length > 0}
+        <div class="relative" bind:this={levelDropdownElement}>
+          <button
+            type="button"
+            class={`inline-flex items-center gap-2 text-[11px] px-2.5 py-1 rounded-md border transition-colors ${
+              selectedLevels.length === 0
+                ? "bg-primary-600/15 text-primary-200 border-primary-600/35"
+                : "bg-surface-800 text-surface-200 border-surface-600 hover:bg-surface-700"
+            }`}
+            onclick={() => (levelDropdownOpen = !levelDropdownOpen)}
+            aria-haspopup="menu"
+            aria-expanded={levelDropdownOpen}
           >
-            <div class="flex items-center justify-between gap-2 px-2 py-1.5 border-b border-surface-700">
-              <button
-                type="button"
-                class="text-[11px] text-primary-300 hover:text-primary-200"
-                onclick={() => {
-                  resetLevelFilter();
-                  levelDropdownOpen = false;
-                }}
-              >
-                All levels
-              </button>
-              <button
-                type="button"
-                class="text-[11px] text-surface-300 hover:text-surface-100 disabled:opacity-40"
-                onclick={() => {
-                  selectedLevels = [];
-                  levelDropdownOpen = false;
-                }}
-                disabled={selectedLevels.length === 0}
-              >
-                Clear
-              </button>
-            </div>
+            <span class="uppercase tracking-wide">Levels</span>
+            <span class="text-surface-300 normal-case">{levelFilterLabel()}</span>
+            <span class={`text-surface-400 transition-transform ${levelDropdownOpen ? "rotate-180" : ""}`}>▾</span>
+          </button>
 
-            <div class="max-h-56 overflow-auto p-1.5 space-y-1">
-              {#each levelOptions as level (level)}
+          {#if levelDropdownOpen}
+            <div
+              class="absolute right-0 top-full mt-2 w-52 rounded-lg border border-surface-600 bg-surface-900 shadow-xl z-20 overflow-hidden"
+              role="menu"
+              aria-label="Filter levels"
+            >
+              <div class="flex items-center justify-between gap-2 px-2 py-1.5 border-b border-surface-700">
                 <button
                   type="button"
-                  role="menuitemcheckbox"
-                  aria-checked={isLevelChecked(level)}
-                  class={`w-full flex items-center gap-2 rounded-md px-2 py-1 text-[11px] transition-colors ${
-                    isLevelChecked(level)
-                      ? "bg-primary-600/15 text-primary-100"
-                      : "text-surface-200 hover:bg-surface-800"
-                  }`}
-                  onclick={() => toggleLevelFromDropdown(level)}
+                  class="text-[11px] text-primary-300 hover:text-primary-200"
+                  onclick={() => {
+                    resetLevelFilter();
+                    levelDropdownOpen = false;
+                  }}
                 >
-                  <span
-                    class={`w-3.5 h-3.5 rounded border flex items-center justify-center text-[10px] leading-none ${
-                      isLevelChecked(level)
-                        ? "border-primary-400 bg-primary-500/20 text-primary-200"
-                        : "border-surface-500 text-transparent"
-                    }`}
-                  >
-                    ✓
-                  </span>
-                  <span class="font-mono tracking-wide">{displayLevel(level)}</span>
+                  All levels
                 </button>
-              {/each}
+                <button
+                  type="button"
+                  class="text-[11px] text-surface-300 hover:text-surface-100 disabled:opacity-40"
+                  onclick={() => {
+                    selectedLevels = [];
+                    levelDropdownOpen = false;
+                  }}
+                  disabled={selectedLevels.length === 0}
+                >
+                  Clear
+                </button>
+              </div>
+
+              <div class="max-h-56 overflow-auto p-1.5 space-y-1">
+                {#each levelOptions as level (level)}
+                  <button
+                    type="button"
+                    role="menuitemcheckbox"
+                    aria-checked={isLevelChecked(level)}
+                    class={`w-full flex items-center gap-2 rounded-md px-2 py-1 text-[11px] transition-colors ${
+                      isLevelChecked(level)
+                        ? "bg-primary-600/15 text-primary-100"
+                        : "text-surface-200 hover:bg-surface-800"
+                    }`}
+                    onclick={() => toggleLevelFromDropdown(level)}
+                  >
+                    <span
+                      class={`w-3.5 h-3.5 rounded border flex items-center justify-center text-[10px] leading-none ${
+                        isLevelChecked(level)
+                          ? "border-primary-400 bg-primary-500/20 text-primary-200"
+                          : "border-surface-500 text-transparent"
+                      }`}
+                    >
+                      ✓
+                    </span>
+                    <span class="font-mono tracking-wide">{displayLevel(level)}</span>
+                  </button>
+                {/each}
+              </div>
             </div>
-          </div>
-        {/if}
-      </div>
-    {/if}
+          {/if}
+        </div>
+      {/if}
+    </div>
   </header>
 
   <div

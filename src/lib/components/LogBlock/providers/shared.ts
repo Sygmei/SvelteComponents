@@ -85,3 +85,29 @@ export function parseGroupMarkers(line: string): LogProviderParseResult | null {
 
   return null;
 }
+
+const AIRFLOW_LEVEL_ALIAS_MAP: Record<string, string> = {
+  FATAL: "CRITICAL",
+  WARN: "WARNING",
+};
+
+export const AIRFLOW_LEVEL_ORDER = ["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"];
+
+export function normalizeAirflowLevel(level: string): string {
+  const normalized = level.toUpperCase();
+  return AIRFLOW_LEVEL_ALIAS_MAP[normalized] ?? normalized;
+}
+
+export function displayAirflowLevel(level: string): string {
+  const normalized = normalizeAirflowLevel(level);
+
+  if (normalized === "CRITICAL") {
+    return "CRITICAL/FATAL";
+  }
+
+  if (normalized === "WARNING") {
+    return "WARNING/WARN";
+  }
+
+  return normalized;
+}

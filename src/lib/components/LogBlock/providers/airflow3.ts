@@ -1,5 +1,11 @@
 import type { LogProvider, LogProviderParseResult } from "../types.js";
-import { defaultLinkify, parseGroupMarkers } from "./shared.js";
+import {
+  AIRFLOW_LEVEL_ORDER,
+  defaultLinkify,
+  displayAirflowLevel,
+  normalizeAirflowLevel,
+  parseGroupMarkers,
+} from "./shared.js";
 import type { StructuredLogProvider } from "./types.js";
 
 function parseAirflow3Line(line: string): LogProviderParseResult {
@@ -35,10 +41,10 @@ function parseAirflow3Line(line: string): LogProviderParseResult {
 
 const airflow3ProviderImpl: LogProvider = {
   parseLine: parseAirflow3Line,
-  normalizeLevel: (level: string) => level.toUpperCase(),
+  normalizeLevel: normalizeAirflowLevel,
   linkify: (text: string) => defaultLinkify(text),
-  levelOrder: ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-  displayLevel: (level: string) => level,
+  levelOrder: AIRFLOW_LEVEL_ORDER,
+  displayLevel: displayAirflowLevel,
 };
 
 export const airflow3Provider: StructuredLogProvider = {

@@ -70,6 +70,8 @@ export interface LogBlockProps {
   title?: string;
   emptyMessage?: string;
   showLevelFilter?: boolean;
+  showDownloadButton?: boolean;
+  downloadFileName?: string;
   initialGroupsCollapsed?: boolean;
   selectedLevels?: string[];
   className?: string;
