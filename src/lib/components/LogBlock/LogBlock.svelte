@@ -1,6 +1,6 @@
 <script lang="ts">
   import LogBlockEntry from "./LogBlockEntry.svelte";
-  import { airflowLogProvider, defaultLinkify } from "./providers.js";
+  import { airflowLogProvider, defaultLinkify } from "./providers/index.js";
   import type {
     LogBlockProps,
     LogEntry,
