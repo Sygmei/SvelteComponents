@@ -99,15 +99,5 @@ export function normalizeAirflowLevel(level: string): string {
 }
 
 export function displayAirflowLevel(level: string): string {
-  const normalized = normalizeAirflowLevel(level);
-
-  if (normalized === "CRITICAL") {
-    return "CRITICAL/FATAL";
-  }
-
-  if (normalized === "WARNING") {
-    return "WARNING/WARN";
-  }
-
-  return normalized;
+  return normalizeAirflowLevel(level);
 }

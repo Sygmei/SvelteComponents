@@ -8,9 +8,29 @@ import {
 } from "./shared.js";
 import type { StructuredLogProvider } from "./types.js";
 
+const AIRFLOW2_LEVEL_PATTERN = "[A-Za-z]+(?:/[A-Za-z]+)?";
+const AIRFLOW2_FULL_LINE_REGEX = new RegExp(
+  `^\\s*\\[(?<timestamp>[^\\]]+)\\]\\s*\\{(?<location>[^}]+)\\}\\s*(?<level>${AIRFLOW2_LEVEL_PATTERN})\\s*-\\s*(?<message>.*)$`
+);
+const AIRFLOW2_PARTIAL_LINE_REGEX = new RegExp(
+  `^\\s*(?:\\[(?<timestamp>[^\\]]+)\\]\\s*)?(?:\\{(?<location>[^}]+)\\}\\s*)?(?:(?<level>${AIRFLOW2_LEVEL_PATTERN})\\s*-\\s*)?(?<message>.*)$`
+);
+const AIRFLOW2_WRAPPED_GROUP_REGEX = new RegExp(
+  `^\\s*(?:\\[[^\\]]+\\]\\s*)?(?:\\{[^}]+\\}\\s*)?(?:${AIRFLOW2_LEVEL_PATTERN})\\s*-\\s*(::group::.*|::endgroup::)\\s*$`
+);
+
 function normalizeAirflow2Timestamp(timestamp: string): string {
   // Airflow 2 often emits offsets like +0000; normalize to +00:00 for consistent rendering.
   return timestamp.replace(/([+-]\d{2})(\d{2})$/, "$1:$2");
+}
+
+function parseWrappedGroupMarker(line: string): LogProviderParseResult | null {
+  const wrappedGroupMatch = line.match(AIRFLOW2_WRAPPED_GROUP_REGEX);
+  if (!wrappedGroupMatch) {
+    return null;
+  }
+
+  return parseGroupMarkers(wrappedGroupMatch[1].trimStart());
 }
 
 function parseAirflow2Line(line: string): LogProviderParseResult {
@@ -20,10 +40,13 @@ function parseAirflow2Line(line: string): LogProviderParseResult {
     return groupedLine;
   }
 
+  const wrappedGroupLine = parseWrappedGroupMarker(line);
+  if (wrappedGroupLine) {
+    return wrappedGroupLine;
+  }
+
   // Airflow2 lines can miss one or more parts (timestamp/location/level).
-  const parsedMatch = line.match(
-    /^\s*(?:\[(?<timestamp>[^\]]+)\]\s*)?(?:\{(?<location>[^}]+)\}\s*)?(?:(?<level>[A-Za-z]+)\s*-\s*)?(?<message>.*)$/
-  );
+  const parsedMatch = line.match(AIRFLOW2_FULL_LINE_REGEX) ?? line.match(AIRFLOW2_PARTIAL_LINE_REGEX);
 
   if (parsedMatch?.groups) {
     const timestampRaw = parsedMatch.groups.timestamp?.trim();
