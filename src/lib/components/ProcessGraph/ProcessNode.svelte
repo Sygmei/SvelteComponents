@@ -562,8 +562,8 @@
                         setActiveModal({
                             modal: ErrorModal,
                             props: {
-                                errorMessage: data.errorMessage || ''
-                            }
+                                errorMessage: data.errorMessage || "",
+                            },
                         });
                     }}
                 >
