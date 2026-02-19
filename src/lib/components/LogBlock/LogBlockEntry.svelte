@@ -251,13 +251,13 @@
       </span>
     {/if}
 
-    <span class="text-xs text-surface-100 break-all min-w-0">
+    <span class="text-xs leading-5 text-surface-100 break-all min-w-0">
       {#each entry.messageParts as part, partIndex (`${part.kind}-${part.text}-${partIndex}`)}
         {#if part.kind === "link" && part.href}
           <button
             type="button"
             onclick={() => window.open(part.href, "_blank", "noopener,noreferrer")}
-            class="underline decoration-primary-400/60 text-primary-300 hover:text-primary-200 text-left p-0 m-0 border-0 bg-transparent align-baseline"
+            class="underline decoration-primary-400/60 text-primary-300 hover:text-primary-200 text-left p-0 m-0 border-0 bg-transparent align-baseline leading-5"
           >
             {part.text}
           </button>
