@@ -232,7 +232,7 @@
         class="inline-flex h-5 items-center rounded-md border border-surface-700/90 bg-surface-800/70 px-1.5 text-xs whitespace-nowrap font-mono tabular-nums leading-none shadow-sm invisible select-none"
         aria-hidden="true"
       >
-        0000-00-00T00:00:00.000000Z
+        0000-00-00T00:00:00.000+00:00
       </span>
     {/if}
 
