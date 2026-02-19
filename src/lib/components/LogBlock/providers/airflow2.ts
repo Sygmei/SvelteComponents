@@ -8,15 +8,18 @@ import {
 } from "./shared.js";
 import type { StructuredLogProvider } from "./types.js";
 
-const AIRFLOW2_LEVEL_PATTERN = "[A-Za-z]+(?:/[A-Za-z]+)?";
+const AIRFLOW2_LEVEL_PATTERN = "(?:CRITICAL|FATAL|ERROR|WARNING|WARN|INFO|DEBUG)";
 const AIRFLOW2_FULL_LINE_REGEX = new RegExp(
-  `^\\s*\\[(?<timestamp>[^\\]]+)\\]\\s*\\{(?<location>[^}]+)\\}\\s*(?<level>${AIRFLOW2_LEVEL_PATTERN})\\s*-\\s*(?<message>.*)$`
+  `^\\s*\\[(?<timestamp>[^\\]]+)\\]\\s*\\{(?<location>[^}]+)\\}\\s*(?<level>${AIRFLOW2_LEVEL_PATTERN})\\b\\s*-\\s*(?<message>.*)$`,
+  "i"
 );
 const AIRFLOW2_PARTIAL_LINE_REGEX = new RegExp(
-  `^\\s*(?:\\[(?<timestamp>[^\\]]+)\\]\\s*)?(?:\\{(?<location>[^}]+)\\}\\s*)?(?:(?<level>${AIRFLOW2_LEVEL_PATTERN})\\s*-\\s*)?(?<message>.*)$`
+  `^\\s*(?:\\[(?<timestamp>[^\\]]+)\\]\\s*)?(?:\\{(?<location>[^}]+)\\}\\s*)?(?:(?<level>${AIRFLOW2_LEVEL_PATTERN})\\b\\s*-\\s*)?(?<message>.*)$`,
+  "i"
 );
 const AIRFLOW2_WRAPPED_GROUP_REGEX = new RegExp(
-  `^\\s*(?:\\[[^\\]]+\\]\\s*)?(?:\\{[^}]+\\}\\s*)?(?:${AIRFLOW2_LEVEL_PATTERN})\\s*-\\s*(::group::.*|::endgroup::)\\s*$`
+  `^\\s*(?:\\[[^\\]]+\\]\\s*)?(?:\\{[^}]+\\}\\s*)?(?:${AIRFLOW2_LEVEL_PATTERN})\\b\\s*-\\s*(::group::.*|::endgroup::)\\s*$`,
+  "i"
 );
 
 function normalizeAirflow2Timestamp(timestamp: string): string {

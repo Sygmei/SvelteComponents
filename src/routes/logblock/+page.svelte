@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { LogBlock, airflowLogProvider } from "$lib/components/LogBlock";
+  import { LogBlock, airflow2LogProvider, airflowLogProvider } from "$lib/components/LogBlock";
   import type { LogProvider } from "$lib/components/LogBlock";
   import airflowLogSample from "../../../airflow_log_example.txt?raw";
+  import airflow2LogSample from "../../../airflow2_log_example.txt?raw";
 
   const customProvider: LogProvider = {
     parseLine: (line: string) => {
@@ -38,6 +39,7 @@
   ].join("\n");
 
   let selectedAirflowLevels = $state<string[]>([]);
+  let selectedAirflow2Levels = $state<string[]>([]);
 </script>
 
 <svelte:head>
@@ -64,6 +66,21 @@
       Active levels: {selectedAirflowLevels.length === 0
         ? "All"
         : selectedAirflowLevels.join(", ")}
+    </p>
+  </section>
+
+  <section class="space-y-4">
+    <h2 class="text-xl font-semibold text-surface-100">Airflow 2 Provider Example</h2>
+    <LogBlock
+      logs={airflow2LogSample}
+      provider={airflow2LogProvider}
+      bind:selectedLevels={selectedAirflow2Levels}
+      title="Airflow 2 Task Logs"
+    />
+    <p class="text-xs text-surface-400">
+      Active levels: {selectedAirflow2Levels.length === 0
+        ? "All"
+        : selectedAirflow2Levels.join(", ")}
     </p>
   </section>
 

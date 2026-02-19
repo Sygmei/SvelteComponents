@@ -218,7 +218,7 @@
 {:else}
   {@const parsedTimestamp = parseTimestamp(entry.timestamp)}
   <div
-    class="grid grid-cols-[max-content_9ch_minmax(0,1fr)] items-start gap-x-2 px-2 py-1 rounded-lg hover:bg-surface-800/40"
+    class="grid grid-cols-[29ch_9ch_minmax(0,1fr)] items-start gap-x-2 px-2 py-1 rounded-lg hover:bg-surface-800/40"
     style={`margin-left: ${depth * 16}px;`}
   >
     {#if parsedTimestamp}
