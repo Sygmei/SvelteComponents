@@ -3,7 +3,10 @@
 
   interface Props {
     rules: Rule[];
-    testPayload?: (payload: Record<string, unknown>, rules: Rule[]) => PayloadTestResult;
+    testPayload?: (
+      payload: Record<string, unknown>,
+      rules: Rule[],
+    ) => PayloadTestResult;
   }
 
   let { rules, testPayload }: Props = $props();
@@ -30,7 +33,7 @@
   const matchedRule = $derived(
     result?.matchedRuleId != null
       ? rules.find((r) => r.id === result!.matchedRuleId)
-      : null
+      : null,
   );
 </script>
 
@@ -44,7 +47,9 @@
       placeholder="&#123; &quot;field&quot;: &quot;value&quot; &#125;"
     ></textarea>
     {#if parseError}
-      <p class="text-xs text-error-500 dark:text-error-400 mt-1">{parseError}</p>
+      <p class="text-xs text-error-500 dark:text-error-400 mt-1">
+        {parseError}
+      </p>
     {/if}
   </div>
 
@@ -59,7 +64,9 @@
 
   {#if !testPayload}
     <p class="text-xs text-surface-400 dark:text-surface-500 italic">
-      Provide a <code class="bg-surface-200 dark:bg-surface-700 px-1 rounded">testPayload</code> function to enable testing.
+      Provide a <code class="bg-surface-200 dark:bg-surface-700 px-1 rounded"
+        >testPayload</code
+      > function to enable testing.
     </p>
   {/if}
 
@@ -74,29 +81,40 @@
       {#if result.matched && matchedRule}
         <div class="flex items-center gap-2 font-semibold mb-1">
           <span
-            class="inline-block w-2 h-2 rounded-full {matchedRule.mode === 'ALLOW'
+            class="inline-block w-2 h-2 rounded-full {matchedRule.mode ===
+            'ALLOW'
               ? 'bg-success-500'
               : 'bg-error-500'}"
           ></span>
-          <span class="{matchedRule.mode === 'ALLOW' ? 'text-success-700 dark:text-success-300' : 'text-error-700 dark:text-error-300'}">
-            {matchedRule.mode === "ALLOW" ? "✓ Allowed" : "✕ Forbidden"}
+          <span
+            class={matchedRule.mode === "ALLOW"
+              ? "text-success-700 dark:text-success-300"
+              : "text-error-700 dark:text-error-300"}
+          >
+            {matchedRule.mode === "ALLOW" ? "✓ Allowed" : "✕ Denied"}
           </span>
-          <span class="font-normal text-surface-500 dark:text-surface-400 text-xs">
+          <span
+            class="font-normal text-surface-500 dark:text-surface-400 text-xs"
+          >
             by rule #{(result.matchedRuleIndex ?? 0) + 1} — "{matchedRule.name}"
           </span>
         </div>
         {#if matchedRule.properties.length > 0}
           <div class="mt-2 space-y-1">
             {#each matchedRule.properties as prop}
-              <div class="flex gap-2 text-xs text-surface-600 dark:text-surface-400">
+              <div
+                class="flex gap-2 text-xs text-surface-600 dark:text-surface-400"
+              >
                 <span class="font-medium">{prop.key}:</span>
-                <span>{String(prop.value)}</span>
+                <span>{Array.isArray(prop.value) ? prop.value.join(", ") : String(prop.value)}</span>
               </div>
             {/each}
           </div>
         {/if}
       {:else}
-        <div class="flex items-center gap-2 text-surface-500 dark:text-surface-400">
+        <div
+          class="flex items-center gap-2 text-surface-500 dark:text-surface-400"
+        >
           <span class="inline-block w-2 h-2 rounded-full bg-surface-400"></span>
           No rule matched this payload.
         </div>

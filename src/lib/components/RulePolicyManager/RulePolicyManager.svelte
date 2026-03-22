@@ -1,5 +1,10 @@
 <script lang="ts">
-  import type { Rule, RuleMode, PropertyDefinition, RulePolicyManagerProps } from "./types.js";
+  import type {
+    Rule,
+    RuleMode,
+    PropertyDefinition,
+    RulePolicyManagerProps,
+  } from "./types.js";
   import PropertyEditor from "./PropertyEditor.svelte";
   import PayloadTester from "./PayloadTester.svelte";
 
@@ -68,7 +73,7 @@
   }
 
   function toggleMode(id: string, current: RuleMode) {
-    updateRule(id, { mode: current === "ALLOW" ? "FORBID" : "ALLOW" });
+    updateRule(id, { mode: current === "ALLOW" ? "DENY" : "ALLOW" });
   }
 
   function toggleEnabled(id: string, current: boolean) {
@@ -143,24 +148,36 @@
   }
 </script>
 
-<div class="flex flex-col gap-0 w-full rounded-2xl border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 overflow-hidden shadow-sm">
-
+<div
+  class="flex flex-col gap-0 w-full rounded-2xl border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 overflow-hidden shadow-sm"
+>
   <!-- Header -->
-  <div class="flex items-center justify-between px-5 py-3 border-b border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-950">
+  <div
+    class="flex items-center justify-between px-5 py-3 border-b border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-950"
+  >
     <div class="flex items-center gap-3">
       <span class="text-lg">⚖️</span>
-      <h2 class="text-base font-bold text-surface-900 dark:text-surface-100 tracking-tight">Rule Policy Manager</h2>
-      <span class="text-xs px-2 py-0.5 rounded-full bg-surface-200 dark:bg-surface-700 text-surface-600 dark:text-surface-400 font-medium">
+      <h2
+        class="text-base font-bold text-surface-900 dark:text-surface-100 tracking-tight"
+      >
+        Rule Policy Manager
+      </h2>
+      <span
+        class="text-xs px-2 py-0.5 rounded-full bg-surface-200 dark:bg-surface-700 text-surface-600 dark:text-surface-400 font-medium"
+      >
         {rules.length} rule{rules.length !== 1 ? "s" : ""}
       </span>
     </div>
 
     <!-- Tabs -->
-    <div class="flex items-center gap-1 bg-surface-100 dark:bg-surface-800 rounded-xl p-1">
+    <div
+      class="flex items-center gap-1 bg-surface-100 dark:bg-surface-800 rounded-xl p-1"
+    >
       <button
         type="button"
         onclick={() => (activeTab = "rules")}
-        class="text-xs px-3 py-1.5 rounded-lg font-medium transition-all {activeTab === 'rules'
+        class="text-xs px-3 py-1.5 rounded-lg font-medium transition-all {activeTab ===
+        'rules'
           ? 'bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 shadow-sm'
           : 'text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-300'}"
       >
@@ -169,7 +186,8 @@
       <button
         type="button"
         onclick={() => (activeTab = "test")}
-        class="text-xs px-3 py-1.5 rounded-lg font-medium transition-all {activeTab === 'test'
+        class="text-xs px-3 py-1.5 rounded-lg font-medium transition-all {activeTab ===
+        'test'
           ? 'bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 shadow-sm'
           : 'text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-300'}"
       >
@@ -183,7 +201,9 @@
     <!-- Rules list -->
     <div class="divide-y divide-surface-200 dark:divide-surface-700">
       {#if rules.length === 0}
-        <div class="flex flex-col items-center justify-center py-14 text-surface-400 dark:text-surface-500 gap-3">
+        <div
+          class="flex flex-col items-center justify-center py-14 text-surface-400 dark:text-surface-500 gap-3"
+        >
           <span class="text-4xl">📋</span>
           <p class="text-sm font-medium">No rules yet</p>
           <p class="text-xs">Add your first rule to get started</p>
@@ -194,7 +214,8 @@
         {@const isExpanded = expandedIds.has(rule.id)}
         {@const isDragging = dragIndex === index}
         {@const showLineBefore = dropPosition === index && dragIndex !== index}
-        {@const showLineAfter = dropPosition === index + 1 && dragIndex !== index}
+        {@const showLineAfter =
+          dropPosition === index + 1 && dragIndex !== index}
 
         <div
           draggable={true}
@@ -205,13 +226,21 @@
           ondragend={onDragEnd}
           class="transition-all duration-150
             {isDragging ? 'opacity-40 scale-[0.99]' : 'opacity-100'}
-            {showLineBefore ? 'border-t-2 border-t-primary-400 dark:border-t-primary-500' : ''}
-            {showLineAfter ? 'border-b-2 border-b-primary-400 dark:border-b-primary-500' : ''}"
+            {showLineBefore
+            ? 'border-t-2 border-t-primary-400 dark:border-t-primary-500'
+            : ''}
+            {showLineAfter
+            ? 'border-b-2 border-b-primary-400 dark:border-b-primary-500'
+            : ''}"
         >
           <!-- Rule header row -->
           <div
-            class="flex items-center gap-2 px-4 py-3 {rule.enabled ? '' : 'opacity-50'}
-              {isExpanded ? 'bg-surface-100 dark:bg-surface-800' : 'bg-white dark:bg-surface-950 hover:bg-surface-50 dark:hover:bg-surface-900'}
+            class="flex items-center gap-2 px-4 py-3 {rule.enabled
+              ? ''
+              : 'opacity-50'}
+              {isExpanded
+              ? 'bg-surface-100 dark:bg-surface-800'
+              : 'bg-white dark:bg-surface-950 hover:bg-surface-50 dark:hover:bg-surface-900'}
               transition-colors"
           >
             <!-- Drag handle -->
@@ -221,18 +250,25 @@
               aria-label="Drag to reorder"
               tabindex={-1}
             >
-              <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor">
-                <circle cx="3" cy="3" r="1.5"/>
-                <circle cx="7" cy="3" r="1.5"/>
-                <circle cx="3" cy="8" r="1.5"/>
-                <circle cx="7" cy="8" r="1.5"/>
-                <circle cx="3" cy="13" r="1.5"/>
-                <circle cx="7" cy="13" r="1.5"/>
+              <svg
+                width="10"
+                height="16"
+                viewBox="0 0 10 16"
+                fill="currentColor"
+              >
+                <circle cx="3" cy="3" r="1.5" />
+                <circle cx="7" cy="3" r="1.5" />
+                <circle cx="3" cy="8" r="1.5" />
+                <circle cx="7" cy="8" r="1.5" />
+                <circle cx="3" cy="13" r="1.5" />
+                <circle cx="7" cy="13" r="1.5" />
               </svg>
             </button>
 
             <!-- Index badge -->
-            <span class="text-xs text-surface-400 dark:text-surface-500 font-mono w-5 text-center shrink-0">
+            <span
+              class="text-xs text-surface-400 dark:text-surface-500 font-mono w-5 text-center shrink-0"
+            >
               {index + 1}
             </span>
 
@@ -241,7 +277,9 @@
               type="button"
               onclick={() => toggleEnabled(rule.id, rule.enabled)}
               class="relative inline-flex h-4 w-7 shrink-0 rounded-full border-2 border-transparent cursor-pointer transition-colors duration-200
-                {rule.enabled ? 'bg-primary-500' : 'bg-surface-300 dark:bg-surface-600'}"
+                {rule.enabled
+                ? 'bg-primary-500'
+                : 'bg-surface-300 dark:bg-surface-600'}"
               role="switch"
               aria-checked={rule.enabled}
               aria-label="Toggle rule enabled"
@@ -256,13 +294,13 @@
             <button
               type="button"
               onclick={() => toggleMode(rule.id, rule.mode)}
-              class="text-xs font-bold px-2 py-0.5 rounded-md shrink-0 transition-colors
+              class="text-xs font-bold px-2 w-20 text-center py-0.5 rounded-md shrink-0 transition-colors
                 {rule.mode === 'ALLOW'
-                  ? 'bg-success-100 dark:bg-success-950 text-success-700 dark:text-success-300 hover:bg-success-200 dark:hover:bg-success-900 border border-success-300 dark:border-success-700'
-                  : 'bg-error-100 dark:bg-error-950 text-error-700 dark:text-error-300 hover:bg-error-200 dark:hover:bg-error-900 border border-error-300 dark:border-error-700'}"
-              title="Click to toggle ALLOW / FORBID"
+                ? 'bg-success-100 dark:bg-success-950 text-success-700 dark:text-success-300 hover:bg-success-200 dark:hover:bg-success-900 border border-success-300 dark:border-success-700'
+                : 'bg-error-100 dark:bg-error-950 text-error-700 dark:text-error-300 hover:bg-error-200 dark:hover:bg-error-900 border border-error-300 dark:border-error-700'}"
+              title="Click to toggle ALLOW / DENY"
             >
-              {rule.mode === "ALLOW" ? "✓ ALLOW" : "✕ FORBID"}
+              {rule.mode === "ALLOW" ? "✓ ALLOW" : "✕ DENY"}
             </button>
 
             <!-- Rule name -->
@@ -277,8 +315,12 @@
 
             <!-- Properties count pill -->
             {#if rule.properties.length > 0}
-              <span class="text-xs px-1.5 py-0.5 rounded-full bg-surface-200 dark:bg-surface-700 text-surface-500 dark:text-surface-400 shrink-0">
-                {rule.properties.length} prop{rule.properties.length !== 1 ? "s" : ""}
+              <span
+                class="text-xs px-1.5 py-0.5 rounded-full bg-surface-200 dark:bg-surface-700 text-surface-500 dark:text-surface-400 shrink-0"
+              >
+                {rule.properties.length} prop{rule.properties.length !== 1
+                  ? "s"
+                  : ""}
               </span>
             {/if}
 
@@ -319,7 +361,9 @@
                   stroke-width="2"
                   stroke-linecap="round"
                   stroke-linejoin="round"
-                  class="transition-transform duration-200 {isExpanded ? 'rotate-180' : ''}"
+                  class="transition-transform duration-200 {isExpanded
+                    ? 'rotate-180'
+                    : ''}"
                 >
                   <polyline points="2,4 6,8 10,4" />
                 </svg>
@@ -329,16 +373,24 @@
 
           <!-- Expanded: property editor -->
           {#if isExpanded}
-            <div class="px-10 pb-4 bg-surface-50 dark:bg-surface-900 border-t border-surface-200 dark:border-surface-700">
+            <div
+              class="px-4 pb-2 bg-surface-50 dark:bg-surface-900 border-t border-surface-200 dark:border-surface-700"
+            >
               {#if propertyDefinitions.length === 0}
-                <p class="text-xs text-surface-400 dark:text-surface-500 italic pt-3">
-                  No property definitions provided. Pass <code class="bg-surface-200 dark:bg-surface-700 px-1 rounded">propertyDefinitions</code> to enable property editing.
+                <p
+                  class="text-xs text-surface-400 dark:text-surface-500 italic pt-3"
+                >
+                  No property definitions provided. Pass <code
+                    class="bg-surface-200 dark:bg-surface-700 px-1 rounded"
+                    >propertyDefinitions</code
+                  > to enable property editing.
                 </p>
               {:else}
                 <PropertyEditor
                   {propertyDefinitions}
                   properties={rule.properties}
-                  onPropertiesChange={(props) => updateRule(rule.id, { properties: props })}
+                  onPropertiesChange={(props) =>
+                    updateRule(rule.id, { properties: props })}
                 />
               {/if}
             </div>
@@ -348,13 +400,18 @@
     </div>
 
     <!-- Footer: add rule -->
-    <div class="px-5 py-3 border-t border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-950">
+    <div
+      class="px-5 py-3 border-t border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-950"
+    >
       <button
         type="button"
         onclick={addRule}
         class="flex items-center gap-2 text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
       >
-        <span class="w-6 h-6 flex items-center justify-center rounded-lg bg-primary-100 dark:bg-primary-950 text-primary-600 dark:text-primary-400 text-base font-bold">+</span>
+        <span
+          class="w-6 h-6 flex items-center justify-center rounded-lg bg-primary-100 dark:bg-primary-950 text-primary-600 dark:text-primary-400 text-base font-bold"
+          >+</span
+        >
         Add rule
       </button>
     </div>
@@ -362,8 +419,14 @@
     <!-- Test Payload tab -->
     <div class="p-5 bg-white dark:bg-surface-950">
       <div class="mb-3">
-        <h3 class="text-sm font-semibold text-surface-900 dark:text-surface-100 mb-1">Test a Payload</h3>
-        <p class="text-xs text-surface-500 dark:text-surface-400">Enter a JSON payload to see which rule matches first.</p>
+        <h3
+          class="text-sm font-semibold text-surface-900 dark:text-surface-100 mb-1"
+        >
+          Test a Payload
+        </h3>
+        <p class="text-xs text-surface-500 dark:text-surface-400">
+          Enter a JSON payload to see which rule matches first.
+        </p>
       </div>
       <PayloadTester {rules} {testPayload} />
     </div>

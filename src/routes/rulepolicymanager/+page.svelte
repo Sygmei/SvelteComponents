@@ -54,6 +54,20 @@
       label: "Created Before",
       type: "date",
     },
+    {
+      key: "allowedRoles",
+      label: "Allowed Roles",
+      type: "array",
+      itemType: "enum",
+      itemEnumValues: ["admin", "editor", "viewer", "guest"],
+    },
+    {
+      key: "allowedCountries",
+      label: "Allowed Countries",
+      type: "array",
+      itemType: "string",
+      placeholder: "e.g. US",
+    },
   ];
 
   // ─── Initial rules ──────────────────────────────────────────────────────────
@@ -67,8 +81,8 @@
     },
     {
       id: "rule-2",
-      name: "Forbid Guests",
-      mode: "FORBID",
+      name: "Deny Guests",
+      mode: "DENY",
       enabled: true,
       properties: [
         { key: "role", value: "guest" },
@@ -99,6 +113,10 @@
       // A rule matches when ALL its defined properties match the payload.
       const matches = rule.properties.every((prop) => {
         const payloadValue = payload[prop.key];
+        // Array (anyOf): payload value must be one of the listed items
+        if (Array.isArray(prop.value)) {
+          return prop.value.includes(String(payloadValue));
+        }
         // Coerce number properties
         if (typeof prop.value === "number") {
           return Number(payloadValue) === prop.value;
@@ -157,7 +175,7 @@
       </header>
       <ul class="list-disc list-inside space-y-1 text-sm text-surface-700 dark:text-surface-300">
         <li><strong>Drag</strong> the ⠿ handle to reorder rules — priority is top-to-bottom</li>
-        <li><strong>Click the mode badge</strong> (✓ ALLOW / ✕ FORBID) to toggle between modes</li>
+        <li><strong>Click the mode badge</strong> (✓ ALLOW / ✕ DENY) to toggle between modes</li>
         <li><strong>Toggle the switch</strong> to enable or disable a rule without deleting it</li>
         <li><strong>Expand a rule</strong> with the chevron to edit its property conditions</li>
         <li>Open the <strong>Test Payload</strong> tab and enter a JSON object to see which rule fires first</li>
