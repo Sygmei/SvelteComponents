@@ -15,7 +15,7 @@
 
   let addingKey = $state<string | null>(null);
 
-  // ─── scalar mirrors ──────────────────────────────────────────────────────────
+  // scalar mirrors
   let inputMirrors = $state<Record<string, string>>({});
 
   $effect(() => {
@@ -45,7 +45,7 @@
     }
   }
 
-  // ─── array helpers ───────────────────────────────────────────────────────────
+  // array helpers
   /** Which array property currently has its "add item" row open */
   let arrayAddingKey = $state<string | null>(null);
   /** Pending new-item value per property key */
@@ -87,7 +87,7 @@
     arrayNewValue = { ...arrayNewValue, [key]: "" };
   }
 
-  // ─── shared ──────────────────────────────────────────────────────────────────
+  // shared
   function removeProperty(key: string) {
     onPropertiesChange(properties.filter((p) => p.key !== key));
   }

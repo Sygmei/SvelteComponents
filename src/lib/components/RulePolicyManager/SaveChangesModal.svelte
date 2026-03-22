@@ -21,7 +21,7 @@
         onCancel = () => {},
     }: Props = $props();
 
-    // ─── helpers ────────────────────────────────────────────────────────────────
+    // helpers
     function propLabel(key: string): string {
         const def = propertyDefinitions.find((d) => d.key === key);
         if (def?.label) return def.label;

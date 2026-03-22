@@ -10,7 +10,7 @@
   import { setActiveModal } from "$lib/components/Modal/ModalStore.svelte";
   import SaveChangesModal from "$lib/components/RulePolicyManager/SaveChangesModal.svelte";
 
-  // ─── Property definitions for the demo ─────────────────────────────────────
+  // Property definitions for the demo
   const propertyDefinitions: PropertyDefinition[] = [
     {
       key: "role",
@@ -74,7 +74,7 @@
     },
   ];
 
-  // ─── Initial rules ──────────────────────────────────────────────────────────
+  // Initial rules
   let rules = $state<Rule[]>([
     {
       id: "rule-1",
@@ -115,7 +115,7 @@
     },
   ]);
 
-  // ─── Payload tester ─────────────────────────────────────────────────────────
+  // Payload tester
   function testPayload(
     payload: Record<string, unknown>,
     activeRules: Rule[],
@@ -148,7 +148,7 @@
     return { matched: false, matchedRuleId: null, matchedRuleIndex: null };
   }
 
-  // ─── Change log ─────────────────────────────────────────────────────────────
+  // Change log
   let changeLog = $state<string[]>([]);
 
   function handleRulesChange(updated: Rule[]) {
@@ -156,7 +156,7 @@
     changeLog = [entry, ...changeLog].slice(0, 10);
   }
 
-  // ─── Dirty / Save ────────────────────────────────────────────────────────────
+  // Dirty / Save
   let isDirty = $state(false);
 
   function handleSave(
@@ -177,7 +177,7 @@
     });
   }
 
-  // ─── Navigation guard ────────────────────────────────────────────────────────
+  // Navigation guard
   beforeNavigate(({ cancel }) => {
     if (isDirty) {
       if (!confirm("You have unsaved changes. Leave this page?")) {

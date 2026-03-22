@@ -21,29 +21,29 @@
     testPayload,
   }: Props = $props();
 
-  // ─── saved snapshot ────────────────────────────────────────────────────────
+  // saved snapshot
   // Deep-cloned at mount; updated only when the user confirms a save.
   let savedRulesSnapshot = $state<string>(JSON.stringify(rules));
 
-  // ─── dirty tracking ───────────────────────────────────────────────────────
+  // dirty tracking
   const _isDirty = $derived(JSON.stringify(rules) !== savedRulesSnapshot);
   $effect(() => {
     isDirty = _isDirty;
   });
 
-  // ─── drag & drop state ─────────────────────────────────────────────────────
+  // drag & drop state
   let dragIndex = $state<number | null>(null);
   // dropPosition is the insertion index (0 = before first … N = after last)
   let dropPosition = $state<number | null>(null);
   let dragging = $state(false);
 
-  // ─── expanded rows ──────────────────────────────────────────────────────────
+  // expanded rows
   let expandedIds = $state<Set<string>>(new Set());
 
-  // ─── active tab ─────────────────────────────────────────────────────────────
+  // active tab
   let activeTab = $state<"rules" | "test">("rules");
 
-  // ─── helpers ────────────────────────────────────────────────────────────────
+  // helpers
   function notify() {
     onRulesChange([...rules]);
   }
@@ -111,7 +111,7 @@
     notify();
   }
 
-  // ─── drag & drop ────────────────────────────────────────────────────────────
+  // drag & drop
   function onDragStart(e: DragEvent, index: number) {
     dragIndex = index;
     dragging = true;
@@ -161,7 +161,7 @@
     dragging = false;
   }
 
-  // ─── change summary ───────────────────────────────────────────────────────
+  // change summary
   function buildChangeSummary(
     saved: Rule[],
     current: Rule[],
