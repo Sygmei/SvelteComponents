@@ -79,16 +79,16 @@
     {
       id: "rule-1",
       name: "Allow Admins",
-      mode: "ALLOW",
+      action: "ALLOW",
       enabled: true,
-      properties: [{ key: "role", value: "admin" }],
+      filters: [{ key: "role", value: "admin" }],
     },
     {
       id: "rule-2",
       name: "Deny Guests",
-      mode: "DENY",
+      action: "DENY",
       enabled: true,
-      properties: [
+      filters: [
         { key: "role", value: "guest" },
         { key: "verified", value: false },
       ],
@@ -96,9 +96,9 @@
     {
       id: "rule-3",
       name: "Allow Pro Editors",
-      mode: "ALLOW",
+      action: "ALLOW",
       enabled: false,
-      properties: [
+      filters: [
         { key: "role", value: "editor" },
         { key: "subscriptionLevel", value: "pro" },
       ],
@@ -106,9 +106,9 @@
     {
       id: "rule-4",
       name: "Allow Privileged Roles",
-      mode: "ALLOW",
+      action: "ALLOW",
       enabled: true,
-      properties: [
+      filters: [
         { key: "allowedRoles", value: ["admin", "editor"] },
         { key: "verified", value: true },
       ],
@@ -125,7 +125,7 @@
       if (!rule.enabled) continue;
 
       // A rule matches when ALL its defined properties match the payload.
-      const matches = rule.properties.every((prop) => {
+      const matches = rule.filters.every((prop) => {
         const payloadValue = payload[prop.key];
         // Array (anyOf): payload value must be one of the listed items
         if (Array.isArray(prop.value)) {

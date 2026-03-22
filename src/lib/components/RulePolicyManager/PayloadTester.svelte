@@ -73,7 +73,7 @@
   {#if result}
     <div
       class="rounded-xl border p-3 text-sm {result.matched
-        ? matchedRule?.mode === 'ALLOW'
+        ? matchedRule?.action === 'ALLOW'
           ? 'border-success-400 bg-success-50 dark:bg-success-950 dark:border-success-700'
           : 'border-error-400 bg-error-50 dark:bg-error-950 dark:border-error-700'
         : 'border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900'}"
@@ -81,17 +81,17 @@
       {#if result.matched && matchedRule}
         <div class="flex items-center gap-2 font-semibold mb-1">
           <span
-            class="inline-block w-2 h-2 rounded-full {matchedRule.mode ===
+            class="inline-block w-2 h-2 rounded-full {matchedRule.action ===
             'ALLOW'
               ? 'bg-success-500'
               : 'bg-error-500'}"
           ></span>
           <span
-            class={matchedRule.mode === "ALLOW"
+            class={matchedRule.action === "ALLOW"
               ? "text-success-700 dark:text-success-300"
               : "text-error-700 dark:text-error-300"}
           >
-            {matchedRule.mode === "ALLOW" ? "✓ Allowed" : "✕ Denied"}
+            {matchedRule.action === "ALLOW" ? "✓ Allowed" : "✕ Denied"}
           </span>
           <span
             class="font-normal text-surface-500 dark:text-surface-400 text-xs"
@@ -99,9 +99,9 @@
             by rule #{(result.matchedRuleIndex ?? 0) + 1} — "{matchedRule.name}"
           </span>
         </div>
-        {#if matchedRule.properties.length > 0}
+        {#if matchedRule.filters.length > 0}
           <div class="mt-2 space-y-1">
-            {#each matchedRule.properties as prop}
+            {#each matchedRule.filters as prop}
               <div
                 class="flex gap-2 text-xs text-surface-600 dark:text-surface-400"
               >

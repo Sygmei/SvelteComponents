@@ -1,7 +1,7 @@
 <script lang="ts">
   import type {
     Rule,
-    RuleMode,
+    RuleAction,
     PropertyDefinition,
     RulePolicyManagerProps,
     RuleChangeSummary,
@@ -56,9 +56,9 @@
     const newRule: Rule = {
       id: generateId(),
       name: `Rule ${rules.length + 1}`,
-      mode: "ALLOW",
+      action: "ALLOW",
       enabled: true,
-      properties: [],
+      filters: [],
     };
     rules = [...rules, newRule];
     expandedIds = new Set([...expandedIds, newRule.id]);
@@ -86,8 +86,8 @@
     notify();
   }
 
-  function toggleMode(id: string, current: RuleMode) {
-    updateRule(id, { mode: current === "ALLOW" ? "DENY" : "ALLOW" });
+  function toggleAction(id: string, current: RuleAction) {
+    updateRule(id, { action: current === "ALLOW" ? "DENY" : "ALLOW" });
   }
 
   function toggleEnabled(id: string, current: boolean) {
@@ -101,7 +101,7 @@
       ...src,
       id: generateId(),
       name: src.name + " (copy)",
-      properties: src.properties.map((p) => ({ ...p })),
+      filters: src.filters.map((p) => ({ ...p })),
     };
     const idx = rules.findIndex((r) => r.id === id);
     const updated = [...rules];
@@ -176,13 +176,13 @@
     for (const rule of current) {
       const prev = savedMap.get(rule.id);
       if (!prev || JSON.stringify(rule) === JSON.stringify(prev)) continue;
-      const changedFields: Array<"name" | "mode" | "enabled" | "properties"> =
+      const changedFields: Array<"name" | "action" | "enabled" | "filters"> =
         [];
       if (rule.name !== prev.name) changedFields.push("name");
-      if (rule.mode !== prev.mode) changedFields.push("mode");
+      if (rule.action !== prev.action) changedFields.push("action");
       if (rule.enabled !== prev.enabled) changedFields.push("enabled");
-      if (JSON.stringify(rule.properties) !== JSON.stringify(prev.properties))
-        changedFields.push("properties");
+      if (JSON.stringify(rule.filters) !== JSON.stringify(prev.filters))
+        changedFields.push("filters");
       modified.push({ rule, previous: prev, changedFields });
     }
 
@@ -219,6 +219,12 @@
       savedRulesSnapshot = JSON.stringify(rules);
     });
   }
+
+  function handleRevert() {
+    if (!_isDirty) return;
+    rules = JSON.parse(savedRulesSnapshot);
+    onRulesChange(rules);
+  }
 </script>
 
 <div
@@ -244,6 +250,29 @@
 
     <!-- Dirty / Save button -->
     <div class="flex items-center gap-2">
+      {#if _isDirty}
+        <button
+          type="button"
+          onclick={handleRevert}
+          class="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-600 dark:text-surface-300 border border-surface-200 dark:border-surface-700 transition-colors"
+          title="Revert all unsaved changes"
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M1 4h6a4 4 0 1 1 0 8" />
+            <polyline points="1,1 1,4 4,4" />
+          </svg>
+          Revert
+        </button>
+      {/if}
       {#if _isDirty && onSave}
         <button
           type="button"
@@ -370,6 +399,7 @@
             <!-- Index badge -->
             <span
               class="text-xs text-surface-400 dark:text-surface-500 font-mono w-5 text-center shrink-0"
+              title="Priority {index + 1}"
             >
               {index + 1}
             </span>
@@ -392,17 +422,17 @@
               ></span>
             </button>
 
-            <!-- Mode badge -->
+            <!-- Action badge -->
             <button
               type="button"
-              onclick={() => toggleMode(rule.id, rule.mode)}
+              onclick={() => toggleAction(rule.id, rule.action)}
               class="text-xs font-bold px-2 w-20 text-center py-0.5 rounded-md shrink-0 transition-colors
-                {rule.mode === 'ALLOW'
+                {rule.action === 'ALLOW'
                 ? 'bg-success-100 dark:bg-success-950 text-success-700 dark:text-success-300 hover:bg-success-200 dark:hover:bg-success-900 border border-success-300 dark:border-success-700'
                 : 'bg-error-100 dark:bg-error-950 text-error-700 dark:text-error-300 hover:bg-error-200 dark:hover:bg-error-900 border border-error-300 dark:border-error-700'}"
               title="Click to toggle ALLOW / DENY"
             >
-              {rule.mode === "ALLOW" ? "✓ ALLOW" : "✕ DENY"}
+              {rule.action === "ALLOW" ? "✓ ALLOW" : "✕ DENY"}
             </button>
 
             <!-- Rule name -->
@@ -415,16 +445,20 @@
               class="flex-1 min-w-0 text-sm font-medium bg-transparent border-none outline-none text-surface-900 dark:text-surface-100 placeholder:text-surface-400 dark:placeholder:text-surface-500 cursor-text"
             />
 
+            <!-- Rule ID badge -->
+            <span
+              class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-surface-100 dark:bg-surface-800 text-surface-400 dark:text-surface-500 border border-surface-200 dark:border-surface-700 shrink-0 hidden sm:inline"
+              title="Rule ID: {rule.id}"
+            >
+              {rule.id.slice(0, 8)}
+            </span>
+
             <!-- Properties count pill -->
-            {#if rule.properties.length > 0}
-              <span
-                class="text-xs px-1.5 py-0.5 rounded-full bg-surface-200 dark:bg-surface-700 text-surface-500 dark:text-surface-400 shrink-0"
-              >
-                {rule.properties.length} prop{rule.properties.length !== 1
-                  ? "s"
-                  : ""}
-              </span>
-            {/if}
+            <span
+              class="text-xs px-1.5 py-0.5 rounded-full bg-surface-200 dark:bg-surface-700 text-surface-500 dark:text-surface-400 shrink-0"
+            >
+              {rule.filters.length} filter{rule.filters.length !== 1 ? "s" : ""}
+            </span>
 
             <!-- Action buttons -->
             <div class="flex items-center gap-1 shrink-0">
@@ -450,8 +484,8 @@
                 type="button"
                 onclick={() => toggleExpanded(rule.id)}
                 class="w-6 h-6 flex items-center justify-center rounded-md text-surface-400 dark:text-surface-500 hover:bg-surface-200 dark:hover:bg-surface-700 hover:text-surface-700 dark:hover:text-surface-300 transition-colors"
-                title={isExpanded ? "Collapse" : "Expand properties"}
-                aria-label={isExpanded ? "Collapse" : "Expand properties"}
+                title={isExpanded ? "Collapse" : "Expand filters"}
+                aria-label={isExpanded ? "Collapse" : "Expand filters"}
                 aria-expanded={isExpanded}
               >
                 <svg
@@ -490,9 +524,9 @@
               {:else}
                 <PropertyEditor
                   {propertyDefinitions}
-                  properties={rule.properties}
-                  onPropertiesChange={(props) =>
-                    updateRule(rule.id, { properties: props })}
+                  filters={rule.filters}
+                  onFiltersChange={(filters) =>
+                    updateRule(rule.id, { filters })}
                 />
               {/if}
             </div>

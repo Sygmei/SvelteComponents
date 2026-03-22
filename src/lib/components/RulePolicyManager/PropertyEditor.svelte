@@ -3,11 +3,15 @@
 
   interface Props {
     propertyDefinitions: PropertyDefinition[];
-    properties: RuleProperty[];
-    onPropertiesChange: (properties: RuleProperty[]) => void;
+    filters: RuleProperty[];
+    onFiltersChange: (filters: RuleProperty[]) => void;
   }
 
-  let { propertyDefinitions, properties, onPropertiesChange }: Props = $props();
+  let {
+    propertyDefinitions,
+    filters: properties,
+    onFiltersChange: onPropertiesChange,
+  }: Props = $props();
 
   let addingKey = $state<string | null>(null);
 
@@ -267,7 +271,7 @@
           type="button"
           onclick={() => removeProperty(prop.key)}
           class="opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 flex items-center justify-center rounded-md text-surface-400 dark:text-surface-500 hover:bg-error-100 dark:hover:bg-error-950 hover:text-error-500 dark:hover:text-error-400 text-sm"
-          aria-label="Remove property">×</button
+          aria-label="Remove filter">×</button
         >
       </div>
     </div>
@@ -293,7 +297,7 @@
             class="w-4 h-4 flex items-center justify-center rounded bg-primary-100 dark:bg-primary-950 text-primary-600 dark:text-primary-400 text-sm font-bold leading-none"
             >+</span
           >
-          Add condition
+          Add filter
         </button>
       </div>
     {:else}
@@ -302,7 +306,7 @@
       >
         <span
           class="text-[11px] font-semibold text-primary-600 dark:text-primary-400"
-          >Property</span
+          >Filter</span
         >
         <select
           bind:value={addingKey}

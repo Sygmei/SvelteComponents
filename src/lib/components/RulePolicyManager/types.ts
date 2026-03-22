@@ -1,5 +1,5 @@
 export type PropertyType = "string" | "number" | "boolean" | "enum" | "date" | "array";
-export type RuleMode = "ALLOW" | "DENY";
+export type RuleAction = "ALLOW" | "DENY";
 
 export interface PropertyDefinition {
   key: string;
@@ -21,9 +21,9 @@ export interface RuleProperty {
 export interface Rule {
   id: string;
   name: string;
-  mode: RuleMode;
+  action: RuleAction;
   enabled: boolean;
-  properties: RuleProperty[];
+  filters: RuleProperty[];
 }
 
 export interface PayloadTestResult {
@@ -37,7 +37,7 @@ export interface RuleModification {
   rule: Rule;
   previous: Rule;
   /** Which top-level fields changed */
-  changedFields: Array<"name" | "mode" | "enabled" | "properties">;
+  changedFields: Array<"name" | "action" | "enabled" | "filters">;
 }
 
 export interface RuleChangeSummary {
