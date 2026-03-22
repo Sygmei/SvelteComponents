@@ -4,6 +4,8 @@
     RuleMode,
     PropertyDefinition,
     RulePolicyManagerProps,
+    RuleChangeSummary,
+    RuleModification,
   } from "./types.js";
   import PropertyEditor from "./PropertyEditor.svelte";
   import PayloadTester from "./PayloadTester.svelte";
@@ -13,9 +15,21 @@
   let {
     rules = $bindable<Rule[]>([]),
     propertyDefinitions = [],
+    isDirty = $bindable(false),
     onRulesChange = () => {},
+    onSave,
     testPayload,
   }: Props = $props();
+
+  // ─── saved snapshot ────────────────────────────────────────────────────────
+  // Deep-cloned at mount; updated only when the user confirms a save.
+  let savedRulesSnapshot = $state<string>(JSON.stringify(rules));
+
+  // ─── dirty tracking ───────────────────────────────────────────────────────
+  const _isDirty = $derived(JSON.stringify(rules) !== savedRulesSnapshot);
+  $effect(() => {
+    isDirty = _isDirty;
+  });
 
   // ─── drag & drop state ─────────────────────────────────────────────────────
   let dragIndex = $state<number | null>(null);
@@ -146,6 +160,65 @@
     dropPosition = null;
     dragging = false;
   }
+
+  // ─── change summary ───────────────────────────────────────────────────────
+  function buildChangeSummary(
+    saved: Rule[],
+    current: Rule[],
+  ): RuleChangeSummary {
+    const savedMap = new Map(saved.map((r) => [r.id, r]));
+    const currentMap = new Map(current.map((r) => [r.id, r]));
+
+    const added = current.filter((r) => !savedMap.has(r.id));
+    const removed = saved.filter((r) => !currentMap.has(r.id));
+
+    const modified: RuleModification[] = [];
+    for (const rule of current) {
+      const prev = savedMap.get(rule.id);
+      if (!prev || JSON.stringify(rule) === JSON.stringify(prev)) continue;
+      const changedFields: Array<"name" | "mode" | "enabled" | "properties"> =
+        [];
+      if (rule.name !== prev.name) changedFields.push("name");
+      if (rule.mode !== prev.mode) changedFields.push("mode");
+      if (rule.enabled !== prev.enabled) changedFields.push("enabled");
+      if (JSON.stringify(rule.properties) !== JSON.stringify(prev.properties))
+        changedFields.push("properties");
+      modified.push({ rule, previous: prev, changedFields });
+    }
+
+    const savedOrder = saved
+      .filter((r) => currentMap.has(r.id))
+      .map((r) => ({ id: r.id, name: r.name }));
+    const currentOrder = current
+      .filter((r) => savedMap.has(r.id))
+      .map((r) => ({ id: r.id, name: r.name }));
+    const reordered =
+      JSON.stringify(savedOrder.map((r) => r.id)) !==
+      JSON.stringify(currentOrder.map((r) => r.id));
+
+    const totalChanges =
+      added.length + removed.length + modified.length + (reordered ? 1 : 0);
+
+    return {
+      added,
+      removed,
+      modified,
+      reordered,
+      totalChanges,
+      savedOrder,
+      currentOrder,
+    };
+  }
+
+  function handleSave() {
+    if (!onSave || !_isDirty) return;
+    const savedParsed: Rule[] = JSON.parse(savedRulesSnapshot);
+    const currentCopy: Rule[] = JSON.parse(JSON.stringify(rules));
+    const summary = buildChangeSummary(savedParsed, currentCopy);
+    onSave(currentCopy, summary, () => {
+      savedRulesSnapshot = JSON.stringify(rules);
+    });
+  }
 </script>
 
 <div
@@ -169,30 +242,59 @@
       </span>
     </div>
 
-    <!-- Tabs -->
-    <div
-      class="flex items-center gap-1 bg-surface-100 dark:bg-surface-800 rounded-xl p-1"
-    >
-      <button
-        type="button"
-        onclick={() => (activeTab = "rules")}
-        class="text-xs px-3 py-1.5 rounded-lg font-medium transition-all {activeTab ===
-        'rules'
-          ? 'bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 shadow-sm'
-          : 'text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-300'}"
+    <!-- Dirty / Save button -->
+    <div class="flex items-center gap-2">
+      {#if _isDirty && onSave}
+        <button
+          type="button"
+          onclick={handleSave}
+          class="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary-500 hover:bg-primary-600 active:bg-primary-700 text-white transition-colors shadow-sm"
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M1 1h7.5L11 3.5V11H1V1z" />
+            <rect x="3.5" y="7" width="5" height="4" rx="0.5" />
+            <rect x="3.5" y="1" width="4" height="3" rx="0.5" />
+          </svg>
+          Save
+          <span class="w-1.5 h-1.5 rounded-full bg-white/70 animate-pulse"
+          ></span>
+        </button>
+      {/if}
+
+      <!-- Tabs -->
+      <div
+        class="flex items-center gap-1 bg-surface-100 dark:bg-surface-800 rounded-xl p-1"
       >
-        Rules
-      </button>
-      <button
-        type="button"
-        onclick={() => (activeTab = "test")}
-        class="text-xs px-3 py-1.5 rounded-lg font-medium transition-all {activeTab ===
-        'test'
-          ? 'bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 shadow-sm'
-          : 'text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-300'}"
-      >
-        Test Payload
-      </button>
+        <button
+          type="button"
+          onclick={() => (activeTab = "rules")}
+          class="text-xs px-3 py-1.5 rounded-lg font-medium transition-all {activeTab ===
+          'rules'
+            ? 'bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 shadow-sm'
+            : 'text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-300'}"
+        >
+          Rules
+        </button>
+        <button
+          type="button"
+          onclick={() => (activeTab = "test")}
+          class="text-xs px-3 py-1.5 rounded-lg font-medium transition-all {activeTab ===
+          'test'
+            ? 'bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 shadow-sm'
+            : 'text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-300'}"
+        >
+          Test Payload
+        </button>
+      </div>
     </div>
   </div>
 

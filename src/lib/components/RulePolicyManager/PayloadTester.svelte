@@ -106,7 +106,11 @@
                 class="flex gap-2 text-xs text-surface-600 dark:text-surface-400"
               >
                 <span class="font-medium">{prop.key}:</span>
-                <span>{Array.isArray(prop.value) ? prop.value.join(", ") : String(prop.value)}</span>
+                <span
+                  >{Array.isArray(prop.value)
+                    ? prop.value.join(", ")
+                    : String(prop.value)}</span
+                >
               </div>
             {/each}
           </div>

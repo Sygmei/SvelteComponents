@@ -77,7 +77,7 @@
     const sizeClasses = {
         small: "min-w-80 max-w-md min-h-48",
         medium: "min-w-96 max-w-lg min-h-56",
-        large: "min-w-[600px] max-w-4xl min-h-80",
+        large: "min-w-[600px] max-w-4xl min-h-80 max-h-[85vh]",
         full: "min-w-[80vw] max-w-[95vw] min-h-[60vh] max-h-[95vh]",
     };
 

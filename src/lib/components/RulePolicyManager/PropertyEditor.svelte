@@ -90,7 +90,7 @@
 
   const definedKeys = $derived(properties.map((p) => p.key));
   const availableToAdd = $derived(
-    propertyDefinitions.filter((d) => !definedKeys.includes(d.key))
+    propertyDefinitions.filter((d) => !definedKeys.includes(d.key)),
   );
 
   const inputClass =
@@ -104,16 +104,18 @@
 </script>
 
 <div class="pt-3 pb-1 flex flex-col gap-1">
-
   <!-- ── Existing properties ─────────────────────────────────────────────── -->
   {#each properties as prop (prop.key)}
     {@const def = propertyDefinitions.find((d) => d.key === prop.key)}
 
-    <div class="group grid grid-cols-[112px_1fr_28px] items-start gap-2 px-3 py-2 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800/60 transition-colors">
-
+    <div
+      class="group grid grid-cols-[112px_1fr_28px] items-start gap-2 px-3 py-2 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800/60 transition-colors"
+    >
       <!-- Label pill -->
       <div class="flex items-center h-7">
-        <span class="inline-block text-[11px] font-semibold text-surface-500 dark:text-surface-400 truncate leading-none">
+        <span
+          class="inline-block text-[11px] font-semibold text-surface-500 dark:text-surface-400 truncate leading-none"
+        >
           {def?.label ?? prop.key}
         </span>
       </div>
@@ -138,38 +140,55 @@
                   }}
                   class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border transition-colors leading-none
                     {checked
-                      ? 'bg-primary-100 dark:bg-primary-950 text-primary-700 dark:text-primary-300 border-primary-300 dark:border-primary-700'
-                      : 'bg-white dark:bg-surface-900 text-surface-400 dark:text-surface-500 border-surface-300 dark:border-surface-600 hover:border-primary-300 dark:hover:border-primary-700 hover:text-primary-600 dark:hover:text-primary-400'}"
+                    ? 'bg-primary-100 dark:bg-primary-950 text-primary-700 dark:text-primary-300 border-primary-300 dark:border-primary-700'
+                    : 'bg-white dark:bg-surface-900 text-surface-400 dark:text-surface-500 border-surface-300 dark:border-surface-600 hover:border-primary-300 dark:hover:border-primary-700 hover:text-primary-600 dark:hover:text-primary-400'}"
                   aria-pressed={checked}
                 >
                   {#if checked}
-                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0">
-                      <polyline points="1,4 3,6 7,2"/>
+                    <svg
+                      width="8"
+                      height="8"
+                      viewBox="0 0 8 8"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="shrink-0"
+                    >
+                      <polyline points="1,4 3,6 7,2" />
                     </svg>
                   {:else}
-                    <span class="w-2 h-2 flex items-center justify-center shrink-0 text-surface-300 dark:text-surface-600 leading-none text-base" aria-hidden="true">·</span>
+                    <span
+                      class="w-2 h-2 flex items-center justify-center shrink-0 text-surface-300 dark:text-surface-600 leading-none text-base"
+                      aria-hidden="true">·</span
+                    >
                   {/if}
                   {val}
                 </button>
               {/each}
             </div>
-
           {:else}
             <!-- ── Free-text array: chips + adder ─────────────────────────── -->
             <div class="flex flex-col gap-1.5">
               <div class="flex flex-wrap gap-1 min-h-[26px] items-center">
                 {#if arr.length === 0}
-                  <span class="text-[11px] text-surface-400 dark:text-surface-500 italic">No values yet…</span>
+                  <span
+                    class="text-[11px] text-surface-400 dark:text-surface-500 italic"
+                    >No values yet…</span
+                  >
                 {:else}
                   {#each arr as item, i}
-                    <span class="inline-flex items-center gap-1 text-[11px] font-medium bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800 pl-2 pr-1 py-0.5 rounded-full leading-none">
+                    <span
+                      class="inline-flex items-center gap-1 text-[11px] font-medium bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800 pl-2 pr-1 py-0.5 rounded-full leading-none"
+                    >
                       {item}
                       <button
                         type="button"
                         onclick={() => removeArrayItem(prop.key, i)}
                         class="w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-error-100 dark:hover:bg-error-900 hover:text-error-600 dark:hover:text-error-400 transition-colors leading-none text-primary-400 dark:text-primary-600"
-                        aria-label="Remove {item}"
-                      >×</button>
+                        aria-label="Remove {item}">×</button
+                      >
                     </span>
                   {/each}
                 {/if}
@@ -181,11 +200,20 @@
                     type={def.itemType === "number" ? "number" : "text"}
                     bind:value={arrayNewValue[prop.key]}
                     placeholder={def.placeholder ?? "Value…"}
-                    onkeydown={(e) => e.key === "Enter" && addArrayItem(prop.key)}
+                    onkeydown={(e) =>
+                      e.key === "Enter" && addArrayItem(prop.key)}
                     class={inputClass}
                   />
-                  <button type="button" onclick={() => addArrayItem(prop.key)} class={btnPrimary}>Add</button>
-                  <button type="button" onclick={() => (arrayAddingKey = null)} class={btnGhost}>✕</button>
+                  <button
+                    type="button"
+                    onclick={() => addArrayItem(prop.key)}
+                    class={btnPrimary}>Add</button
+                  >
+                  <button
+                    type="button"
+                    onclick={() => (arrayAddingKey = null)}
+                    class={btnGhost}>✕</button
+                  >
                 </div>
               {:else}
                 <button
@@ -198,7 +226,6 @@
               {/if}
             </div>
           {/if}
-
         {:else if def?.type === "boolean"}
           <select
             bind:value={inputMirrors[prop.key]}
@@ -208,7 +235,6 @@
             <option value="true">True</option>
             <option value="false">False</option>
           </select>
-
         {:else if def?.type === "enum" && def.enumValues}
           <select
             bind:value={inputMirrors[prop.key]}
@@ -220,10 +246,13 @@
               <option value={val}>{val}</option>
             {/each}
           </select>
-
         {:else}
           <input
-            type={def?.type === "number" ? "number" : def?.type === "date" ? "date" : "text"}
+            type={def?.type === "number"
+              ? "number"
+              : def?.type === "date"
+                ? "date"
+                : "text"}
             bind:value={inputMirrors[prop.key]}
             oninput={() => commitValue(prop.key, inputMirrors[prop.key])}
             placeholder={def?.placeholder ?? ""}
@@ -238,15 +267,17 @@
           type="button"
           onclick={() => removeProperty(prop.key)}
           class="opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 flex items-center justify-center rounded-md text-surface-400 dark:text-surface-500 hover:bg-error-100 dark:hover:bg-error-950 hover:text-error-500 dark:hover:text-error-400 text-sm"
-          aria-label="Remove property"
-        >×</button>
+          aria-label="Remove property">×</button
+        >
       </div>
     </div>
   {/each}
 
   <!-- ── Divider when there are properties ──────────────────────────────── -->
   {#if properties.length > 0 && availableToAdd.length > 0}
-    <div class="border-t border-surface-200 dark:border-surface-700 mx-3 my-1"></div>
+    <div
+      class="border-t border-surface-200 dark:border-surface-700 mx-3 my-1"
+    ></div>
   {/if}
 
   <!-- ── Add property ────────────────────────────────────────────────────── -->
@@ -258,13 +289,21 @@
           onclick={() => (addingKey = availableToAdd[0].key)}
           class="flex items-center gap-1.5 text-xs font-medium text-primary-500 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
         >
-          <span class="w-4 h-4 flex items-center justify-center rounded bg-primary-100 dark:bg-primary-950 text-primary-600 dark:text-primary-400 text-sm font-bold leading-none">+</span>
+          <span
+            class="w-4 h-4 flex items-center justify-center rounded bg-primary-100 dark:bg-primary-950 text-primary-600 dark:text-primary-400 text-sm font-bold leading-none"
+            >+</span
+          >
           Add condition
         </button>
       </div>
     {:else}
-      <div class="grid grid-cols-[112px_1fr_auto_auto] items-center gap-2 px-3 py-2 rounded-xl bg-primary-50 dark:bg-primary-950/30 border border-primary-200 dark:border-primary-800 mx-0">
-        <span class="text-[11px] font-semibold text-primary-600 dark:text-primary-400">Property</span>
+      <div
+        class="grid grid-cols-[112px_1fr_auto_auto] items-center gap-2 px-3 py-2 rounded-xl bg-primary-50 dark:bg-primary-950/30 border border-primary-200 dark:border-primary-800 mx-0"
+      >
+        <span
+          class="text-[11px] font-semibold text-primary-600 dark:text-primary-400"
+          >Property</span
+        >
         <select
           bind:value={addingKey}
           class="text-xs rounded-lg border border-primary-300 dark:border-primary-700 bg-white dark:bg-surface-900 text-surface-900 dark:text-surface-100 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400 transition-colors"
@@ -282,17 +321,24 @@
                 commitArrayChange(addingKey, []);
               } else {
                 const defaultValue =
-                  def?.type === "boolean" ? false : def?.type === "number" ? 0 : "";
+                  def?.type === "boolean"
+                    ? false
+                    : def?.type === "number"
+                      ? 0
+                      : "";
                 commitValue(addingKey, String(defaultValue));
               }
             }
             addingKey = null;
           }}
-          class={btnPrimary}
-        >Add</button>
-        <button type="button" onclick={() => (addingKey = null)} class={btnGhost}>✕</button>
+          class={btnPrimary}>Add</button
+        >
+        <button
+          type="button"
+          onclick={() => (addingKey = null)}
+          class={btnGhost}>✕</button
+        >
       </div>
     {/if}
   {/if}
-
 </div>
