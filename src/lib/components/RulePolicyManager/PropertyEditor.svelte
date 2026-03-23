@@ -22,7 +22,7 @@
     for (const p of properties) {
       const def = propertyDefinitions.find((d) => d.key === p.key);
       if (def?.type !== "array") {
-        next[p.key] = String(p.value);
+        next[p.key] = p.value === null ? "" : String(p.value);
       }
     }
     inputMirrors = next;
@@ -32,6 +32,7 @@
     const def = propertyDefinitions.find((d) => d.key === key);
     let value: string | number | boolean | null = rawValue;
     if (def?.type === "date") value = rawValue; // null or RFC3339 string
+    else if (def?.type === "string") value = rawValue === "" ? null : rawValue;
     else if (def?.type === "number") value = (rawValue ?? "") === "" ? 0 : Number(rawValue);
     else if (def?.type === "boolean") value = rawValue === "true";
 

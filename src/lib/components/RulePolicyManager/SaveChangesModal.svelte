@@ -31,7 +31,7 @@
     }
 
     function valueLabel(v: unknown): string {
-        if (Array.isArray(v)) return v.length === 0 ? "(none)" : v.join(", ");
+        if (Array.isArray(v)) return v.length === 0 ? "(empty)" : v.join(", ");
         if (typeof v === "boolean") return v ? "true" : "false";
         if (v === "" || v === null || v === undefined) return "(empty)";
         return String(v);

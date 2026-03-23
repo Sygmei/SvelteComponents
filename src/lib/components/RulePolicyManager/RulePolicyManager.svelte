@@ -51,6 +51,7 @@
     if (def.type === "number") return 0;
     if (def.type === "boolean") return false;
     if (def.type === "date") return null;
+    if (def.type === "string") return null;
     return "";
   }
 
