@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { PropertyDefinition, RuleProperty } from "./types.js";
+  import DateTimeInput from "./DateTimeInput.svelte";
 
   interface Props {
     propertyDefinitions: PropertyDefinition[];
@@ -250,13 +251,15 @@
               <option value={val}>{val}</option>
             {/each}
           </select>
+        {:else if def?.type === "date"}
+          <DateTimeInput
+            value={inputMirrors[prop.key] ?? ""}
+            onchange={(v) => commitValue(prop.key, v)}
+            {inputClass}
+          />
         {:else}
           <input
-            type={def?.type === "number"
-              ? "number"
-              : def?.type === "date"
-                ? "date"
-                : "text"}
+            type={def?.type === "number" ? "number" : "text"}
             bind:value={inputMirrors[prop.key]}
             oninput={() => commitValue(prop.key, inputMirrors[prop.key])}
             placeholder={def?.placeholder ?? ""}
