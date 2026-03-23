@@ -10,6 +10,7 @@
   import PropertyEditor from "./PropertyEditor.svelte";
   import PayloadTester from "./PayloadTester.svelte";
   import RuleMetadataModal from "./RuleMetadataModal.svelte";
+  import { setActiveModal } from "$lib/components/Modal/ModalStore.svelte";
 
   type Props = RulePolicyManagerProps;
 
@@ -25,8 +26,6 @@
   // saved snapshot
   // Deep-cloned at mount; updated only when the user confirms a save.
   let savedRulesSnapshot = $state<string>(JSON.stringify(rules));
-
-  let metadataModalRule = $state<typeof rules[number] | null>(null);
 
   // dirty tracking
   const _isDirty = $derived(JSON.stringify(rules) !== savedRulesSnapshot);
@@ -483,7 +482,7 @@
             <div class="flex items-center gap-1 shrink-0">
               <button
                 type="button"
-                onclick={(e) => { e.stopPropagation(); metadataModalRule = rule; }}
+                onclick={(e) => { e.stopPropagation(); setActiveModal({ modal: RuleMetadataModal, props: { rule } }); }}
                 class="w-6 h-6 flex items-center justify-center rounded-md text-surface-400 dark:text-surface-500 hover:bg-surface-200 dark:hover:bg-surface-700 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                 title="View metadata"
                 aria-label="View metadata"
@@ -600,10 +599,3 @@
     </div>
   {/if}
 </div>
-
-{#if metadataModalRule}
-  <RuleMetadataModal
-    rule={metadataModalRule}
-    onClose={() => (metadataModalRule = null)}
-  />
-{/if}
