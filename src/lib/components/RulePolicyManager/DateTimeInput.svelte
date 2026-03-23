@@ -1,7 +1,7 @@
 <script lang="ts">
     interface Props {
-        value: string; // RFC3339 string
-        onchange: (rfc3339: string) => void;
+        value: string | null; // RFC3339 string, or null when unset
+        onchange: (rfc3339: string | null) => void;
         inputClass?: string;
     }
 
@@ -70,18 +70,21 @@
         return { local: `${datePart}T${timePart}`, tz: tzPart };
     }
 
-    let localDt = $state(parseRfc3339(value).local);
-    let tzOffset = $state(parseRfc3339(value).tz);
+    let localDt = $state(parseRfc3339(value ?? "").local);
+    let tzOffset = $state(parseRfc3339(value ?? "").tz);
 
     // keep in sync when external value changes
     $effect(() => {
-        const p = parseRfc3339(value);
+        const p = parseRfc3339(value ?? "");
         localDt = p.local;
         tzOffset = p.tz;
     });
 
     function emit() {
-        if (!localDt) return;
+        if (!localDt) {
+            onchange(null);
+            return;
+        }
         // datetime-local gives YYYY-MM-DDTHH:MM – add :00 seconds
         const withSeconds = localDt.length === 16 ? `${localDt}:00` : localDt;
         onchange(`${withSeconds}${tzOffset}`);

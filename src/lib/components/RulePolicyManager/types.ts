@@ -29,7 +29,8 @@ export interface FilterDefinition {
 
 export interface RuleFilter {
   key: string;
-  value: string | number | boolean | string[];
+  /** `null` is used specifically for date filters that have not been filled in yet */
+  value: string | number | boolean | string[] | null;
 }
 
 export interface RuleMetadata {

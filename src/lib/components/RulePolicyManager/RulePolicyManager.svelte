@@ -46,10 +46,11 @@
   let activeTab = $state<"rules" | "test">("rules");
 
   // helpers
-  function defaultFilterValue(def: FilterDefinition): string | number | boolean | string[] {
+  function defaultFilterValue(def: FilterDefinition): string | number | boolean | string[] | null {
     if (def.type === "array") return [];
     if (def.type === "number") return 0;
     if (def.type === "boolean") return false;
+    if (def.type === "date") return null;
     return "";
   }
 

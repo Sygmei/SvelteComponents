@@ -28,10 +28,11 @@
     inputMirrors = next;
   });
 
-  function commitValue(key: string, rawValue: string) {
+  function commitValue(key: string, rawValue: string | null) {
     const def = propertyDefinitions.find((d) => d.key === key);
-    let value: string | number | boolean = rawValue;
-    if (def?.type === "number") value = rawValue === "" ? 0 : Number(rawValue);
+    let value: string | number | boolean | null = rawValue;
+    if (def?.type === "date") value = rawValue; // null or RFC3339 string
+    else if (def?.type === "number") value = (rawValue ?? "") === "" ? 0 : Number(rawValue);
     else if (def?.type === "boolean") value = rawValue === "true";
 
     const existing = properties.findIndex((p) => p.key === key);
@@ -390,7 +391,7 @@
           </select>
         {:else if def?.type === "date"}
           <DateTimeInput
-            value={inputMirrors[prop.key] ?? ""}
+            value={(prop.value as string | null) ?? null}
             onchange={(v) => commitValue(prop.key, v)}
             {inputClass}
           />
