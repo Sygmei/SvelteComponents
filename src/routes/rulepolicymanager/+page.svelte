@@ -84,6 +84,12 @@
       action: "ALLOW",
       enabled: true,
       filters: [{ key: "role", value: "admin" }],
+      metadata: {
+        createdBy: "alice",
+        updatedBy: "alice",
+        createdAt: "2025-11-01T09:00:00Z",
+        updatedAt: "2026-01-15T14:32:00Z",
+      },
     },
     {
       id: "rule-2",
@@ -94,6 +100,12 @@
         { key: "role", value: "guest" },
         { key: "verified", value: false },
       ],
+      metadata: {
+        createdBy: "bob",
+        updatedBy: "alice",
+        createdAt: "2025-12-03T11:20:00Z",
+        updatedAt: "2026-02-10T08:45:00Z",
+      },
     },
     {
       id: "rule-3",
@@ -104,6 +116,10 @@
         { key: "role", value: "editor" },
         { key: "subscriptionLevel", value: "pro" },
       ],
+      metadata: {
+        createdBy: "carol",
+        createdAt: "2026-01-20T16:00:00Z",
+      },
     },
     {
       id: "rule-4",

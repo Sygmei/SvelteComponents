@@ -20,12 +20,20 @@ export interface RuleFilter {
   value: string | number | boolean | string[];
 }
 
+export interface RuleMetadata {
+  createdBy?: string;
+  updatedBy?: string;
+  createdAt?: string; // ISO 8601
+  updatedAt?: string; // ISO 8601
+}
+
 export interface Rule {
   id: string;
   name: string;
   action: RuleAction;
   enabled: boolean;
   filters: RuleFilter[];
+  metadata?: RuleMetadata;
 }
 
 export interface PayloadTestResult {

@@ -9,6 +9,7 @@
   } from "./types.js";
   import PropertyEditor from "./PropertyEditor.svelte";
   import PayloadTester from "./PayloadTester.svelte";
+  import RuleMetadataModal from "./RuleMetadataModal.svelte";
 
   type Props = RulePolicyManagerProps;
 
@@ -24,6 +25,8 @@
   // saved snapshot
   // Deep-cloned at mount; updated only when the user confirms a save.
   let savedRulesSnapshot = $state<string>(JSON.stringify(rules));
+
+  let metadataModalRule = $state<typeof rules[number] | null>(null);
 
   // dirty tracking
   const _isDirty = $derived(JSON.stringify(rules) !== savedRulesSnapshot);
@@ -445,23 +448,52 @@
               class="flex-1 min-w-0 text-sm font-medium bg-transparent border-none outline-none text-surface-900 dark:text-surface-100 placeholder:text-surface-400 dark:placeholder:text-surface-500 cursor-text"
             />
 
-            <!-- Rule ID badge -->
+            <!-- Created by badge (always occupies a fixed slot) -->
+            <span class="hidden sm:flex items-center w-24 shrink-0">
+              {#if rule.metadata?.createdBy}
+                <span
+                  class="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-surface-100 dark:bg-surface-800 text-surface-500 dark:text-surface-400 border border-surface-200 dark:border-surface-700 truncate max-w-full"
+                  title="Created by {rule.metadata.createdBy}"
+                >
+                  <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0">
+                    <circle cx="6" cy="4" r="2.5"/>
+                    <path d="M1 11c0-2.76 2.24-5 5-5s5 2.24 5 5"/>
+                  </svg>
+                  <span class="truncate">{rule.metadata.createdBy}</span>
+                </span>
+              {/if}
+            </span>
+
+            <!-- Rule ID badge (fixed width) -->
             <span
-              class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-surface-100 dark:bg-surface-800 text-surface-400 dark:text-surface-500 border border-surface-200 dark:border-surface-700 shrink-0 hidden sm:inline"
+              class="font-mono text-[10px] w-20 text-center px-1.5 py-0.5 rounded bg-surface-100 dark:bg-surface-800 text-surface-400 dark:text-surface-500 border border-surface-200 dark:border-surface-700 shrink-0 hidden sm:inline-block truncate"
               title="Rule ID: {rule.id}"
             >
               {rule.id.slice(0, 8)}
             </span>
 
-            <!-- Properties count pill -->
+            <!-- Filters count pill (fixed width) -->
             <span
-              class="text-xs px-1.5 py-0.5 rounded-full bg-surface-200 dark:bg-surface-700 text-surface-500 dark:text-surface-400 shrink-0"
+              class="text-xs w-20 text-center px-1.5 py-0.5 rounded-full bg-surface-200 dark:bg-surface-700 text-surface-500 dark:text-surface-400 shrink-0"
             >
               {rule.filters.length} filter{rule.filters.length !== 1 ? "s" : ""}
             </span>
 
             <!-- Action buttons -->
             <div class="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onclick={(e) => { e.stopPropagation(); metadataModalRule = rule; }}
+                class="w-6 h-6 flex items-center justify-center rounded-md text-surface-400 dark:text-surface-500 hover:bg-surface-200 dark:hover:bg-surface-700 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                title="View metadata"
+                aria-label="View metadata"
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="6" cy="6" r="5"/>
+                  <line x1="6" y1="5.5" x2="6" y2="9"/>
+                  <circle cx="6" cy="3.5" r="0.5" fill="currentColor" stroke="none"/>
+                </svg>
+              </button>
               <button
                 type="button"
                 onclick={() => duplicateRule(rule.id)}
@@ -568,3 +600,10 @@
     </div>
   {/if}
 </div>
+
+{#if metadataModalRule}
+  <RuleMetadataModal
+    rule={metadataModalRule}
+    onClose={() => (metadataModalRule = null)}
+  />
+{/if}
