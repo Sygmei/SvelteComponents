@@ -1,6 +1,13 @@
 export type FilterType = "string" | "number" | "boolean" | "enum" | "date" | "array";
 export type RuleAction = "ALLOW" | "DENY";
 
+/** A suggestion returned by `FilterDefinition.autocomplete`.
+ * Use a plain `string` when the display text and stored value are identical.
+ * Use `{ label, value }` when you want to show a human-readable label
+ * (e.g. "US — United States") while storing a different value (e.g. "US").
+ */
+export type AutocompleteSuggestion = string | { label: string; value: string };
+
 export interface FilterDefinition {
   key: string;
   label?: string;
@@ -9,6 +16,11 @@ export interface FilterDefinition {
   placeholder?: string;
   /** Regex pattern to validate string / number values (and individual array items for free-text arrays) */
   validationRegex?: string;
+  /** Autocomplete suggestions for string and free-text array filters.
+   * Each suggestion can be a plain string (used as both display label and value)
+   * or an object with separate `label` (display) and `value` (stored) fields.
+   */
+  autocomplete?: (query: string) => AutocompleteSuggestion[] | Promise<AutocompleteSuggestion[]>;
   /** For type "array": the type of each individual item */
   itemType?: "string" | "number" | "enum";
   /** For type "array" + itemType "enum": the allowed enum values for each item */
@@ -57,7 +69,7 @@ export interface RuleChangeSummary {
   reordered: boolean;
   totalChanges: number;
   /** Ordered list of persisted rules (rules present in both saved & current) before the change */
-  savedOrder: Array<{ id: string; name: string }>;
+  previousOrder: Array<{ id: string; name: string }>;
   /** Ordered list of persisted rules after the change */
   currentOrder: Array<{ id: string; name: string }>;
 }

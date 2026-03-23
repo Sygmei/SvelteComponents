@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { FilterDefinition, RuleFilter } from "./types.js";
+  import type { FilterDefinition, RuleFilter, AutocompleteSuggestion } from "./types.js";
   import DateTimeInput from "./DateTimeInput.svelte";
 
   interface Props {
@@ -13,8 +13,6 @@
     filters: properties,
     onFiltersChange: onPropertiesChange,
   }: Props = $props();
-
-  let addingKey = $state<string | null>(null);
 
   // scalar mirrors
   let inputMirrors = $state<Record<string, string>>({});
@@ -89,14 +87,80 @@
   }
 
   // shared
-  function removeProperty(key: string) {
-    onPropertiesChange(properties.filter((p) => p.key !== key));
+  function resetProperty(key: string) {
+    const def = propertyDefinitions.find((d) => d.key === key);
+    const defaultValue:
+      | string
+      | number
+      | boolean
+      | string[] =
+      def?.type === "array" ? [] :
+      def?.type === "number" ? 0 :
+      def?.type === "boolean" ? false :
+      "";
+    const existing = properties.findIndex((p) => p.key === key);
+    if (existing >= 0) {
+      const updated = [...properties];
+      updated[existing] = { key, value: defaultValue };
+      onPropertiesChange(updated);
+    }
   }
 
-  const definedKeys = $derived(properties.map((p) => p.key));
-  const availableToAdd = $derived(
-    propertyDefinitions.filter((d) => !definedKeys.includes(d.key)),
-  );
+  // ── Autocomplete ────────────────────────────────────────────────────────
+  let acSuggestions = $state<Record<string, AutocompleteSuggestion[]>>({});
+  let acOpen = $state<Record<string, boolean>>({});
+  let acLoading = $state<Record<string, boolean>>({});
+  let acHighlight = $state<Record<string, number>>({});
+
+  function acSuggestionValue(s: AutocompleteSuggestion): string {
+    return typeof s === "string" ? s : s.value;
+  }
+  function acSuggestionLabel(s: AutocompleteSuggestion): string {
+    return typeof s === "string" ? s : s.label;
+  }
+
+  async function fetchSuggestions(acKey: string, query: string, def: FilterDefinition) {
+    if (!def.autocomplete) return;
+    acLoading = { ...acLoading, [acKey]: true };
+    acHighlight = { ...acHighlight, [acKey]: -1 };
+    try {
+      const results = await def.autocomplete(query);
+      acSuggestions = { ...acSuggestions, [acKey]: results };
+      acOpen = { ...acOpen, [acKey]: results.length > 0 };
+    } finally {
+      acLoading = { ...acLoading, [acKey]: false };
+    }
+  }
+
+  function acSelect(acKey: string, suggestion: AutocompleteSuggestion, onSelect: (v: string) => void) {
+    onSelect(acSuggestionValue(suggestion));
+    acOpen = { ...acOpen, [acKey]: false };
+    acSuggestions = { ...acSuggestions, [acKey]: [] };
+    acHighlight = { ...acHighlight, [acKey]: -1 };
+  }
+
+  function acKeydown(e: KeyboardEvent, acKey: string, onEnter: (v: string) => void) {
+    const suggestions = acSuggestions[acKey] ?? [];
+    if (!acOpen[acKey] || suggestions.length === 0) return;
+    const hi = acHighlight[acKey] ?? -1;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      acHighlight = { ...acHighlight, [acKey]: Math.min(hi + 1, suggestions.length - 1) };
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      acHighlight = { ...acHighlight, [acKey]: Math.max(hi - 1, -1) };
+    } else if (e.key === "Enter" && hi >= 0) {
+      e.preventDefault();
+      acSelect(acKey, suggestions[hi], onEnter);
+    } else if (e.key === "Escape") {
+      acOpen = { ...acOpen, [acKey]: false };
+    }
+  }
+
+  function acBlur(acKey: string) {
+    // delay so mousedown on a suggestion fires before blur closes the list
+    setTimeout(() => { acOpen = { ...acOpen, [acKey]: false }; }, 150);
+  }
 
   const inputClass =
     "w-full text-xs rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-surface-900 dark:text-surface-100 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400 focus:border-primary-400 transition-colors";
@@ -184,17 +248,37 @@
                   >
                 {:else}
                   {#each arr as item, i}
-                    {@const chipInvalid = !!def.validationRegex && !new RegExp(def.validationRegex).test(item)}
+                    {@const chipInvalid =
+                      !!def.validationRegex &&
+                      !new RegExp(def.validationRegex).test(item)}
                     <span
-                      title={chipInvalid ? `Does not match: ${def.validationRegex}` : undefined}
+                      title={chipInvalid
+                        ? `Does not match: ${def.validationRegex}`
+                        : undefined}
                       class="inline-flex items-center gap-1 text-[11px] font-medium pl-2 pr-1 py-0.5 rounded-full leading-none border
                         {chipInvalid
-                          ? 'bg-error-50 dark:bg-error-950 text-error-700 dark:text-error-300 border-error-300 dark:border-error-700'
-                          : 'bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 border-primary-200 dark:border-primary-800'}"
+                        ? 'bg-error-50 dark:bg-error-950 text-error-700 dark:text-error-300 border-error-300 dark:border-error-700'
+                        : 'bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 border-primary-200 dark:border-primary-800'}"
                     >
                       {#if chipInvalid}
-                        <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" class="shrink-0" aria-hidden="true">
-                          <line x1="5" y1="2" x2="5" y2="5.5"/><circle cx="5" cy="7.5" r="0.5" fill="currentColor" stroke="none"/>
+                        <svg
+                          width="8"
+                          height="8"
+                          viewBox="0 0 10 10"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.5"
+                          stroke-linecap="round"
+                          class="shrink-0"
+                          aria-hidden="true"
+                        >
+                          <line x1="5" y1="2" x2="5" y2="5.5" /><circle
+                            cx="5"
+                            cy="7.5"
+                            r="0.5"
+                            fill="currentColor"
+                            stroke="none"
+                          />
                         </svg>
                       {/if}
                       {item}
@@ -203,8 +287,8 @@
                         onclick={() => removeArrayItem(prop.key, i)}
                         class="w-3.5 h-3.5 flex items-center justify-center rounded-full transition-colors leading-none
                           {chipInvalid
-                            ? 'text-error-400 dark:text-error-600 hover:bg-error-100 dark:hover:bg-error-900 hover:text-error-600 dark:hover:text-error-400'
-                            : 'text-primary-400 dark:text-primary-600 hover:bg-error-100 dark:hover:bg-error-900 hover:text-error-600 dark:hover:text-error-400'}"
+                          ? 'text-error-400 dark:text-error-600 hover:bg-error-100 dark:hover:bg-error-900 hover:text-error-600 dark:hover:text-error-400'
+                          : 'text-primary-400 dark:text-primary-600 hover:bg-error-100 dark:hover:bg-error-900 hover:text-error-600 dark:hover:text-error-400'}"
                         aria-label="Remove {item}">×</button
                       >
                     </span>
@@ -213,22 +297,48 @@
               </div>
 
               {#if arrayAddingKey === prop.key}
-                {@const arrRegexInvalid = !!def.validationRegex && !!arrayNewValue[prop.key] && !new RegExp(def.validationRegex).test(arrayNewValue[prop.key])}
+                {@const acKey = prop.key + ":array"}
+                {@const arrRegexInvalid =
+                  !!def.validationRegex &&
+                  !!arrayNewValue[prop.key] &&
+                  !new RegExp(def.validationRegex).test(
+                    arrayNewValue[prop.key],
+                  )}
+                {@const suggestions = acSuggestions[acKey] ?? []}
                 <div class="flex flex-col gap-0.5">
                   <div class="flex items-center gap-1.5">
-                    <input
-                      type={def.itemType === "number" ? "number" : "text"}
-                      bind:value={arrayNewValue[prop.key]}
-                      placeholder={def.placeholder ?? "Value…"}
-                      onkeydown={(e) =>
-                        e.key === "Enter" && !arrRegexInvalid && addArrayItem(prop.key)}
-                      class="{inputClass} {arrRegexInvalid ? '!border-error-400 dark:!border-error-600 focus:!ring-error-400' : ''}"
-                    />
+                    <div class="relative flex-1 min-w-0">
+                      <input
+                        type={def.itemType === "number" ? "number" : "text"}
+                        bind:value={arrayNewValue[prop.key]}
+                        placeholder={def.placeholder ?? "Value…"}
+                        oninput={() => {
+                          if (def.autocomplete && def.itemType !== "number") fetchSuggestions(acKey, arrayNewValue[prop.key], def);
+                        }}
+                        onfocus={() => {
+                          if (def.autocomplete && def.itemType !== "number") fetchSuggestions(acKey, arrayNewValue[prop.key] ?? "", def);
+                        }}
+                        onblur={() => acBlur(acKey)}
+                        onkeydown={(e) => {
+                          acKeydown(e, acKey, (v) => { arrayNewValue = { ...arrayNewValue, [prop.key]: v }; });
+                          if (!acOpen[acKey] || (acHighlight[acKey] ?? -1) < 0) {
+                            if (e.key === "Enter" && !arrRegexInvalid) addArrayItem(prop.key);
+                          }
+                        }}
+                        class="{inputClass} {arrRegexInvalid
+                          ? '!border-error-400 dark:!border-error-600 focus:!ring-error-400'
+                          : ''}"
+                      />
+                      {#if acOpen[acKey] && suggestions.length > 0}
+                        {@render acDropdown(acKey, suggestions, (v) => { arrayNewValue = { ...arrayNewValue, [prop.key]: v }; })}
+                      {/if}
+                    </div>
                     <button
                       type="button"
                       onclick={() => addArrayItem(prop.key)}
                       disabled={arrRegexInvalid}
-                      class="{btnPrimary} disabled:opacity-40 disabled:cursor-not-allowed">Add</button
+                      class="{btnPrimary} disabled:opacity-40 disabled:cursor-not-allowed"
+                      >Add</button
                     >
                     <button
                       type="button"
@@ -237,8 +347,13 @@
                     >
                   </div>
                   {#if arrRegexInvalid}
-                    <span class="text-[10px] text-error-500 dark:text-error-400 px-0.5 leading-tight">
-                      Must match <code class="font-mono bg-error-100 dark:bg-error-900 px-0.5 rounded">{def.validationRegex}</code>
+                    <span
+                      class="text-[10px] text-error-500 dark:text-error-400 px-0.5 leading-tight"
+                    >
+                      Must match <code
+                        class="font-mono bg-error-100 dark:bg-error-900 px-0.5 rounded"
+                        >{def.validationRegex}</code
+                      >
                     </span>
                   {/if}
                 </div>
@@ -280,102 +395,83 @@
             {inputClass}
           />
         {:else}
-          {@const regexInvalid = !!def?.validationRegex && !!inputMirrors[prop.key] && !new RegExp(def.validationRegex).test(inputMirrors[prop.key])}
+          {@const regexInvalid =
+            !!def?.validationRegex &&
+            !!inputMirrors[prop.key] &&
+            !new RegExp(def.validationRegex).test(inputMirrors[prop.key])}
+          {@const acKey = prop.key}
+          {@const suggestions = acSuggestions[acKey] ?? []}
           <div class="flex flex-col gap-0.5">
-            <input
-              type={def?.type === "number" ? "number" : "text"}
-              bind:value={inputMirrors[prop.key]}
-              oninput={() => commitValue(prop.key, inputMirrors[prop.key])}
-              placeholder={def?.placeholder ?? ""}
-              class="{inputClass} {regexInvalid ? '!border-error-400 dark:!border-error-600 focus:!ring-error-400' : ''}"
-            />
+            <div class="relative">
+              <input
+                type={def?.type === "number" ? "number" : "text"}
+                bind:value={inputMirrors[prop.key]}
+                oninput={() => {
+                  commitValue(prop.key, inputMirrors[prop.key]);
+                  if (def?.autocomplete && def.type === "string") fetchSuggestions(acKey, inputMirrors[prop.key], def);
+                }}
+                onfocus={() => {
+                  if (def?.autocomplete && def?.type === "string") fetchSuggestions(acKey, inputMirrors[prop.key] ?? "", def);
+                }}
+                onblur={() => acBlur(acKey)}
+                onkeydown={(e) => acKeydown(e, acKey, (v) => { inputMirrors[prop.key] = v; commitValue(prop.key, v); })}
+                placeholder={def?.placeholder ?? ""}
+                class="{inputClass} {regexInvalid ? '!border-error-400 dark:!border-error-600 focus:!ring-error-400' : ''}"
+              />
+              {#if acOpen[acKey] && suggestions.length > 0}
+                {@render acDropdown(acKey, suggestions, (v) => { inputMirrors[prop.key] = v; commitValue(prop.key, v); })}
+              {/if}
+            </div>
             {#if regexInvalid}
-              <span class="text-[10px] text-error-500 dark:text-error-400 px-0.5 leading-tight">
-                Must match <code class="font-mono bg-error-100 dark:bg-error-900 px-0.5 rounded">{def?.validationRegex}</code>
+              <span
+                class="text-[10px] text-error-500 dark:text-error-400 px-0.5 leading-tight"
+              >
+                Must match <code
+                  class="font-mono bg-error-100 dark:bg-error-900 px-0.5 rounded"
+                  >{def?.validationRegex}</code
+                >
               </span>
             {/if}
           </div>
         {/if}
       </div>
 
-      <!-- Remove button -->
+      <!-- Reset button -->
       <div class="flex items-center h-7">
         <button
           type="button"
-          onclick={() => removeProperty(prop.key)}
-          class="opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 flex items-center justify-center rounded-md text-surface-400 dark:text-surface-500 hover:bg-error-100 dark:hover:bg-error-950 hover:text-error-500 dark:hover:text-error-400 text-sm"
-          aria-label="Remove filter">×</button
-        >
+          onclick={() => resetProperty(prop.key)}
+          class="opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 flex items-center justify-center rounded-md text-surface-400 dark:text-surface-500 hover:bg-surface-200 dark:hover:bg-surface-700 hover:text-surface-600 dark:hover:text-surface-300 text-sm"
+          title="Reset to default"
+          aria-label="Reset filter">
+          <svg width="11" height="11" viewBox="-1 -1 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.5 2.5A5 5 0 1 0 11 6"/>
+            <polyline points="8,0.5 11,2.5 8.5,5.5"/>
+          </svg>
+        </button>
       </div>
     </div>
   {/each}
-
-  <!-- ── Divider when there are properties ──────────────────────────────── -->
-  {#if properties.length > 0 && availableToAdd.length > 0}
-    <div
-      class="border-t border-surface-200 dark:border-surface-700 mx-3 my-1"
-    ></div>
-  {/if}
-
-  <!-- ── Add property ────────────────────────────────────────────────────── -->
-  {#if availableToAdd.length > 0}
-    {#if addingKey === null}
-      <div class="px-3 py-1">
-        <button
-          type="button"
-          onclick={() => (addingKey = availableToAdd[0].key)}
-          class="flex items-center gap-1.5 text-xs font-medium text-primary-500 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
-        >
-          <span
-            class="w-4 h-4 flex items-center justify-center rounded bg-primary-100 dark:bg-primary-950 text-primary-600 dark:text-primary-400 text-sm font-bold leading-none"
-            >+</span
-          >
-          Add filter
-        </button>
-      </div>
-    {:else}
-      <div
-        class="grid grid-cols-[112px_1fr_auto_auto] items-center gap-2 px-3 py-2 rounded-xl bg-primary-50 dark:bg-primary-950/30 border border-primary-200 dark:border-primary-800 mx-0"
-      >
-        <span
-          class="text-[11px] font-semibold text-primary-600 dark:text-primary-400"
-          >Filter</span
-        >
-        <select
-          bind:value={addingKey}
-          class="text-xs rounded-lg border border-primary-300 dark:border-primary-700 bg-white dark:bg-surface-900 text-surface-900 dark:text-surface-100 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400 transition-colors"
-        >
-          {#each availableToAdd as def}
-            <option value={def.key}>{def.label ?? def.key}</option>
-          {/each}
-        </select>
-        <button
-          type="button"
-          onclick={() => {
-            if (addingKey) {
-              const def = propertyDefinitions.find((d) => d.key === addingKey);
-              if (def?.type === "array") {
-                commitArrayChange(addingKey, []);
-              } else {
-                const defaultValue =
-                  def?.type === "boolean"
-                    ? false
-                    : def?.type === "number"
-                      ? 0
-                      : "";
-                commitValue(addingKey, String(defaultValue));
-              }
-            }
-            addingKey = null;
-          }}
-          class={btnPrimary}>Add</button
-        >
-        <button
-          type="button"
-          onclick={() => (addingKey = null)}
-          class={btnGhost}>✕</button
-        >
-      </div>
-    {/if}
-  {/if}
 </div>
+
+{#snippet acDropdown(acKey: string, suggestions: AutocompleteSuggestion[], onSelect: (v: string) => void)}
+  <ul
+    class="absolute z-20 left-0 right-0 top-full mt-0.5 max-h-40 overflow-y-auto rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 shadow-lg py-0.5 text-xs"
+    role="listbox"
+  >
+    {#each suggestions as suggestion, i}
+      <li
+        role="option"
+        aria-selected={acHighlight[acKey] === i}
+        class="px-3 py-1.5 cursor-pointer truncate transition-colors
+          {acHighlight[acKey] === i
+            ? 'bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300'
+            : 'text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800'}"
+        onmousedown={(e) => { e.preventDefault(); acSelect(acKey, suggestion, onSelect); }}
+      >{acSuggestionLabel(suggestion)}</li>
+    {/each}
+    {#if acLoading[acKey]}
+      <li class="px-3 py-1.5 text-surface-400 dark:text-surface-500 italic">Loading…</li>
+    {/if}
+  </ul>
+{/snippet}

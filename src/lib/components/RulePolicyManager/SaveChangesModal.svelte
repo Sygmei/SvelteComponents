@@ -170,7 +170,7 @@
                             Before
                         </p>
                         <div class="space-y-1">
-                            {#each summary.savedOrder as entry, i}
+                            {#each summary.previousOrder as entry, i}
                                 {@const movedTo =
                                     summary.currentOrder.findIndex(
                                         (r) => r.id === entry.id,
@@ -208,9 +208,10 @@
                         </p>
                         <div class="space-y-1">
                             {#each summary.currentOrder as entry, i}
-                                {@const savedPos = summary.savedOrder.findIndex(
-                                    (r) => r.id === entry.id,
-                                )}
+                                {@const savedPos =
+                                    summary.previousOrder.findIndex(
+                                        (r) => r.id === entry.id,
+                                    )}
                                 {@const moved = savedPos !== i}
                                 <div
                                     class="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs

@@ -46,12 +46,42 @@
   let activeTab = $state<"rules" | "test">("rules");
 
   // helpers
+  function defaultFilterValue(def: FilterDefinition): string | number | boolean | string[] {
+    if (def.type === "array") return [];
+    if (def.type === "number") return 0;
+    if (def.type === "boolean") return false;
+    return "";
+  }
+
+  function backfillFilters(rule: Rule): Rule {
+    if (filtersDefinitions.length === 0) return rule;
+    const existingMap = new Map(rule.filters.map((f) => [f.key, f.value]));
+    const filters = filtersDefinitions.map((d) => ({
+      key: d.key,
+      value: existingMap.has(d.key) ? existingMap.get(d.key)! : defaultFilterValue(d),
+    }));
+    if (JSON.stringify(filters) === JSON.stringify(rule.filters)) return rule;
+    return { ...rule, filters };
+  }
+
+  // Backfill missing filters on existing rules at mount (and whenever
+  // filtersDefinitions change) without triggering dirty state.
+  $effect(() => {
+    if (filtersDefinitions.length === 0) return;
+    const backfilled = rules.map(backfillFilters);
+    const changed = backfilled.some((r, i) => JSON.stringify(r) !== JSON.stringify(rules[i]));
+    if (changed) {
+      rules = backfilled;
+      savedRulesSnapshot = JSON.stringify(rules);
+    }
+  });
+
   function notify() {
     onRulesChange([...rules]);
   }
 
   function generateId(): string {
-    return Math.random().toString(36).slice(2, 10);
+    return crypto.randomUUID();
   }
 
   function addRule() {
@@ -60,7 +90,14 @@
       name: `Rule ${rules.length + 1}`,
       action: "ALLOW",
       enabled: true,
-      filters: [],
+      filters: filtersDefinitions.map((def) => ({
+        key: def.key,
+        value:
+          def.type === "array" ? [] :
+          def.type === "number" ? 0 :
+          def.type === "boolean" ? false :
+          "",
+      })),
     };
     rules = [...rules, newRule];
     expandedIds = new Set([...expandedIds, newRule.id]);
@@ -188,14 +225,14 @@
       modified.push({ rule, previous: prev, changedFields });
     }
 
-    const savedOrder = saved
+    const previousOrder = saved
       .filter((r) => currentMap.has(r.id))
       .map((r) => ({ id: r.id, name: r.name }));
     const currentOrder = current
       .filter((r) => savedMap.has(r.id))
       .map((r) => ({ id: r.id, name: r.name }));
     const reordered =
-      JSON.stringify(savedOrder.map((r) => r.id)) !==
+      JSON.stringify(previousOrder.map((r) => r.id)) !==
       JSON.stringify(currentOrder.map((r) => r.id));
 
     const totalChanges =
@@ -207,7 +244,7 @@
       modified,
       reordered,
       totalChanges,
-      savedOrder,
+      previousOrder,
       currentOrder,
     };
   }
