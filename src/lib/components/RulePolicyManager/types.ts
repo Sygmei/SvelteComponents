@@ -1,19 +1,21 @@
-export type PropertyType = "string" | "number" | "boolean" | "enum" | "date" | "array";
+export type FilterType = "string" | "number" | "boolean" | "enum" | "date" | "array";
 export type RuleAction = "ALLOW" | "DENY";
 
-export interface PropertyDefinition {
+export interface FilterDefinition {
   key: string;
   label?: string;
-  type: PropertyType;
+  type: FilterType;
   enumValues?: string[];
   placeholder?: string;
+  /** Regex pattern to validate string / number values (and individual array items for free-text arrays) */
+  validationRegex?: string;
   /** For type "array": the type of each individual item */
   itemType?: "string" | "number" | "enum";
   /** For type "array" + itemType "enum": the allowed enum values for each item */
   itemEnumValues?: string[];
 }
 
-export interface RuleProperty {
+export interface RuleFilter {
   key: string;
   value: string | number | boolean | string[];
 }
@@ -23,7 +25,7 @@ export interface Rule {
   name: string;
   action: RuleAction;
   enabled: boolean;
-  filters: RuleProperty[];
+  filters: RuleFilter[];
 }
 
 export interface PayloadTestResult {
@@ -54,7 +56,7 @@ export interface RuleChangeSummary {
 
 export interface RulePolicyManagerProps {
   rules?: Rule[];
-  propertyDefinitions?: PropertyDefinition[];
+  filtersDefinitions?: FilterDefinition[];
   /** Tracks whether current rules differ from the last-saved snapshot */
   isDirty?: boolean;
   onRulesChange?: (rules: Rule[]) => void;

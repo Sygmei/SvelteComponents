@@ -1,11 +1,11 @@
 <script lang="ts">
-  import type { PropertyDefinition, RuleProperty } from "./types.js";
+  import type { FilterDefinition, RuleFilter } from "./types.js";
   import DateTimeInput from "./DateTimeInput.svelte";
 
   interface Props {
-    propertyDefinitions: PropertyDefinition[];
-    filters: RuleProperty[];
-    onFiltersChange: (filters: RuleProperty[]) => void;
+    propertyDefinitions: FilterDefinition[];
+    filters: RuleFilter[];
+    onFiltersChange: (filters: RuleFilter[]) => void;
   }
 
   let {
@@ -83,7 +83,7 @@
     arrayAddingKey = null;
   }
 
-  function openArrayAdder(key: string, def: PropertyDefinition) {
+  function openArrayAdder(key: string, def: FilterDefinition) {
     arrayAddingKey = key;
     arrayNewValue = { ...arrayNewValue, [key]: "" };
   }
@@ -184,14 +184,27 @@
                   >
                 {:else}
                   {#each arr as item, i}
+                    {@const chipInvalid = !!def.validationRegex && !new RegExp(def.validationRegex).test(item)}
                     <span
-                      class="inline-flex items-center gap-1 text-[11px] font-medium bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800 pl-2 pr-1 py-0.5 rounded-full leading-none"
+                      title={chipInvalid ? `Does not match: ${def.validationRegex}` : undefined}
+                      class="inline-flex items-center gap-1 text-[11px] font-medium pl-2 pr-1 py-0.5 rounded-full leading-none border
+                        {chipInvalid
+                          ? 'bg-error-50 dark:bg-error-950 text-error-700 dark:text-error-300 border-error-300 dark:border-error-700'
+                          : 'bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 border-primary-200 dark:border-primary-800'}"
                     >
+                      {#if chipInvalid}
+                        <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" class="shrink-0" aria-hidden="true">
+                          <line x1="5" y1="2" x2="5" y2="5.5"/><circle cx="5" cy="7.5" r="0.5" fill="currentColor" stroke="none"/>
+                        </svg>
+                      {/if}
                       {item}
                       <button
                         type="button"
                         onclick={() => removeArrayItem(prop.key, i)}
-                        class="w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-error-100 dark:hover:bg-error-900 hover:text-error-600 dark:hover:text-error-400 transition-colors leading-none text-primary-400 dark:text-primary-600"
+                        class="w-3.5 h-3.5 flex items-center justify-center rounded-full transition-colors leading-none
+                          {chipInvalid
+                            ? 'text-error-400 dark:text-error-600 hover:bg-error-100 dark:hover:bg-error-900 hover:text-error-600 dark:hover:text-error-400'
+                            : 'text-primary-400 dark:text-primary-600 hover:bg-error-100 dark:hover:bg-error-900 hover:text-error-600 dark:hover:text-error-400'}"
                         aria-label="Remove {item}">×</button
                       >
                     </span>
@@ -200,25 +213,34 @@
               </div>
 
               {#if arrayAddingKey === prop.key}
-                <div class="flex items-center gap-1.5">
-                  <input
-                    type={def.itemType === "number" ? "number" : "text"}
-                    bind:value={arrayNewValue[prop.key]}
-                    placeholder={def.placeholder ?? "Value…"}
-                    onkeydown={(e) =>
-                      e.key === "Enter" && addArrayItem(prop.key)}
-                    class={inputClass}
-                  />
-                  <button
-                    type="button"
-                    onclick={() => addArrayItem(prop.key)}
-                    class={btnPrimary}>Add</button
-                  >
-                  <button
-                    type="button"
-                    onclick={() => (arrayAddingKey = null)}
-                    class={btnGhost}>✕</button
-                  >
+                {@const arrRegexInvalid = !!def.validationRegex && !!arrayNewValue[prop.key] && !new RegExp(def.validationRegex).test(arrayNewValue[prop.key])}
+                <div class="flex flex-col gap-0.5">
+                  <div class="flex items-center gap-1.5">
+                    <input
+                      type={def.itemType === "number" ? "number" : "text"}
+                      bind:value={arrayNewValue[prop.key]}
+                      placeholder={def.placeholder ?? "Value…"}
+                      onkeydown={(e) =>
+                        e.key === "Enter" && !arrRegexInvalid && addArrayItem(prop.key)}
+                      class="{inputClass} {arrRegexInvalid ? '!border-error-400 dark:!border-error-600 focus:!ring-error-400' : ''}"
+                    />
+                    <button
+                      type="button"
+                      onclick={() => addArrayItem(prop.key)}
+                      disabled={arrRegexInvalid}
+                      class="{btnPrimary} disabled:opacity-40 disabled:cursor-not-allowed">Add</button
+                    >
+                    <button
+                      type="button"
+                      onclick={() => (arrayAddingKey = null)}
+                      class={btnGhost}>✕</button
+                    >
+                  </div>
+                  {#if arrRegexInvalid}
+                    <span class="text-[10px] text-error-500 dark:text-error-400 px-0.5 leading-tight">
+                      Must match <code class="font-mono bg-error-100 dark:bg-error-900 px-0.5 rounded">{def.validationRegex}</code>
+                    </span>
+                  {/if}
                 </div>
               {:else}
                 <button
@@ -258,13 +280,21 @@
             {inputClass}
           />
         {:else}
-          <input
-            type={def?.type === "number" ? "number" : "text"}
-            bind:value={inputMirrors[prop.key]}
-            oninput={() => commitValue(prop.key, inputMirrors[prop.key])}
-            placeholder={def?.placeholder ?? ""}
-            class={inputClass}
-          />
+          {@const regexInvalid = !!def?.validationRegex && !!inputMirrors[prop.key] && !new RegExp(def.validationRegex).test(inputMirrors[prop.key])}
+          <div class="flex flex-col gap-0.5">
+            <input
+              type={def?.type === "number" ? "number" : "text"}
+              bind:value={inputMirrors[prop.key]}
+              oninput={() => commitValue(prop.key, inputMirrors[prop.key])}
+              placeholder={def?.placeholder ?? ""}
+              class="{inputClass} {regexInvalid ? '!border-error-400 dark:!border-error-600 focus:!ring-error-400' : ''}"
+            />
+            {#if regexInvalid}
+              <span class="text-[10px] text-error-500 dark:text-error-400 px-0.5 leading-tight">
+                Must match <code class="font-mono bg-error-100 dark:bg-error-900 px-0.5 rounded">{def?.validationRegex}</code>
+              </span>
+            {/if}
+          </div>
         {/if}
       </div>
 

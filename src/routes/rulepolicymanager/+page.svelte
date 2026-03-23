@@ -3,15 +3,15 @@
   import { RulePolicyManager } from "$lib/components/RulePolicyManager";
   import type {
     Rule,
-    PropertyDefinition,
+    FilterDefinition,
     PayloadTestResult,
     RuleChangeSummary,
   } from "$lib/components/RulePolicyManager";
   import { setActiveModal } from "$lib/components/Modal/ModalStore.svelte";
   import SaveChangesModal from "$lib/components/RulePolicyManager/SaveChangesModal.svelte";
 
-  // Property definitions for the demo
-  const propertyDefinitions: PropertyDefinition[] = [
+  // Filter definitions for the demo
+  const filtersDefinitions: FilterDefinition[] = [
     {
       key: "role",
       label: "Role",
@@ -41,6 +41,7 @@
       label: "Country",
       type: "string",
       placeholder: "e.g. US",
+      validationRegex: "^[A-Z]{2}$",
     },
     {
       key: "verified",
@@ -71,6 +72,7 @@
       type: "array",
       itemType: "string",
       placeholder: "e.g. US",
+      validationRegex: "^[A-Z]{2}$",
     },
   ];
 
@@ -111,6 +113,15 @@
       filters: [
         { key: "allowedRoles", value: ["admin", "editor"] },
         { key: "verified", value: true },
+      ],
+    },
+    {
+      id: "rule-5",
+      name: "Geo-restricted Access",
+      action: "ALLOW",
+      enabled: true,
+      filters: [
+        { key: "allowedCountries", value: ["US", "GB", "fr"] },
       ],
     },
   ]);
@@ -168,7 +179,7 @@
       modal: SaveChangesModal,
       props: {
         summary,
-        propertyDefinitions,
+        filtersDefinitions,
         onConfirm: () => {
           commit();
         },
@@ -217,7 +228,7 @@
       <RulePolicyManager
         bind:rules
         bind:isDirty
-        {propertyDefinitions}
+        filtersDefinitions={filtersDefinitions}
         {testPayload}
         onRulesChange={handleRulesChange}
         onSave={handleSave}

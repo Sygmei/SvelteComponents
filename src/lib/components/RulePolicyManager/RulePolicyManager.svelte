@@ -2,7 +2,7 @@
   import type {
     Rule,
     RuleAction,
-    PropertyDefinition,
+    FilterDefinition,
     RulePolicyManagerProps,
     RuleChangeSummary,
     RuleModification,
@@ -14,7 +14,7 @@
 
   let {
     rules = $bindable<Rule[]>([]),
-    propertyDefinitions = [],
+    filtersDefinitions = [],
     isDirty = $bindable(false),
     onRulesChange = () => {},
     onSave,
@@ -512,18 +512,18 @@
             <div
               class="px-4 pb-2 bg-surface-50 dark:bg-surface-900 border-t border-surface-200 dark:border-surface-700"
             >
-              {#if propertyDefinitions.length === 0}
+              {#if filtersDefinitions.length === 0}
                 <p
                   class="text-xs text-surface-400 dark:text-surface-500 italic pt-3"
                 >
-                  No property definitions provided. Pass <code
+                  No filter definitions provided. Pass <code
                     class="bg-surface-200 dark:bg-surface-700 px-1 rounded"
-                    >propertyDefinitions</code
-                  > to enable property editing.
+                    >filtersDefinitions</code
+                  > to enable filter editing.
                 </p>
               {:else}
                 <PropertyEditor
-                  {propertyDefinitions}
+                  propertyDefinitions={filtersDefinitions}
                   filters={rule.filters}
                   onFiltersChange={(filters) =>
                     updateRule(rule.id, { filters })}

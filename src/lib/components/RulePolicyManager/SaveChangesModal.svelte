@@ -3,20 +3,20 @@
     import type {
         Rule,
         RuleChangeSummary,
-        PropertyDefinition,
-        RuleProperty,
+        FilterDefinition,
+        RuleFilter,
     } from "./types.js";
 
     interface Props {
         summary: RuleChangeSummary;
-        propertyDefinitions?: PropertyDefinition[];
+        filtersDefinitions?: FilterDefinition[];
         onConfirm: () => void;
         onCancel?: () => void;
     }
 
     let {
         summary,
-        propertyDefinitions = [],
+        filtersDefinitions: propertyDefinitions = [],
         onConfirm,
         onCancel = () => {},
     }: Props = $props();
@@ -47,8 +47,8 @@
     }
 
     function diffProperties(
-        prev: RuleProperty[],
-        curr: RuleProperty[],
+        prev: RuleFilter[],
+        curr: RuleFilter[],
     ): PropDiff[] {
         const prevMap = new Map(prev.map((p) => [p.key, p.value]));
         const currMap = new Map(curr.map((p) => [p.key, p.value]));
