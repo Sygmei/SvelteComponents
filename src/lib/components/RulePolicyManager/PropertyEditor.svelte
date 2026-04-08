@@ -95,11 +95,12 @@
       | string
       | number
       | boolean
-      | string[] =
+      | string[]
+      | null =
       def?.type === "array" ? [] :
       def?.type === "number" ? 0 :
       def?.type === "boolean" ? false :
-      "";
+      null;
     const existing = properties.findIndex((p) => p.key === key);
     if (existing >= 0) {
       const updated = [...properties];

@@ -50,9 +50,7 @@
     if (def.type === "array") return [];
     if (def.type === "number") return 0;
     if (def.type === "boolean") return false;
-    if (def.type === "date") return null;
-    if (def.type === "string") return null;
-    return "";
+    return null;
   }
 
   function backfillFilters(rule: Rule): Rule {
@@ -94,11 +92,7 @@
       enabled: true,
       filters: filtersDefinitions.map((def) => ({
         key: def.key,
-        value:
-          def.type === "array" ? [] :
-          def.type === "number" ? 0 :
-          def.type === "boolean" ? false :
-          "",
+        value: defaultFilterValue(def),
       })),
     };
     rules = [...rules, newRule];
