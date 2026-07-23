@@ -8,15 +8,11 @@
     } from "@xyflow/svelte";
     import { onMount } from "svelte";
     import { hoveredNodeStore, focusedNodeStore } from "./graphUtils";
+    import type { GroupNodeData } from "./types";
     import { get } from "svelte/store";
 
     interface Props {
-        data: {
-            label: string;
-            fullPath: string;
-            collapsed?: boolean;
-            onToggleCollapse?: (groupId: string) => void;
-        };
+        data: GroupNodeData;
         id: string;
         selected?: boolean;
     }
@@ -220,13 +216,23 @@
         },
     ];
 
+    const mappedTaskColors = {
+        bg: "bg-gradient-to-br from-violet-500/10 via-violet-500/5 to-indigo-500/10",
+        border: "border-violet-400/50",
+        text: "text-violet-200",
+        headerBg: "bg-violet-950/90",
+        handleBg: "bg-violet-500",
+    };
+
     const rootFolder = $derived(() => {
         const parts = data.fullPath.split(".");
         return parts[0];
     });
 
     const colorIndex = $derived(hashString(rootFolder()) % colorPalette.length);
-    const colors = $derived(colorPalette[colorIndex]);
+    const colors = $derived(
+        data.mappedTask ? mappedTaskColors : colorPalette[colorIndex],
+    );
 
     // Depth for visual hierarchy
     const depth = $derived(data.fullPath.split(".").length);
@@ -239,7 +245,10 @@
     <button
         class="group-node w-full h-full rounded-xl border-2 transition-all duration-300 {colors.bg} {colors.border} {selected
             ? 'shadow-lg'
+            : ''} {data.mappedTask
+            ? 'mapped-task-group shadow-[0_8px_24px_rgba(109,40,217,0.16),inset_0_1px_0_rgba(255,255,255,0.08)]'
             : ''} flex items-center justify-center gap-3 px-4 hover:opacity-90 cursor-pointer"
+        data-mapped-task={data.mappedTask ? "true" : undefined}
         onclick={handleHeaderClick}
         onmouseenter={handleMouseEnter}
         onmouseleave={handleMouseLeave}
@@ -257,21 +266,47 @@
             />
         </svg>
 
-        <!-- Folder icon -->
-        <svg
-            class="h-5 w-5 {colors.text} flex-shrink-0"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-        >
-            <path
-                d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"
-            />
-        </svg>
+        {#if data.mappedTask}
+            <!-- Stacked squares distinguish mapped tasks from folder groups. -->
+            <svg
+                class="h-5 w-5 flex-shrink-0 {colors.text}"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                viewBox="0 0 20 20"
+            >
+                <rect x="3" y="3" width="9" height="9" rx="2" />
+                <path d="M8 15h6a2 2 0 002-2V7" />
+            </svg>
+        {:else}
+            <!-- Folder icon -->
+            <svg
+                class="h-5 w-5 {colors.text} flex-shrink-0"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+            >
+                <path
+                    d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"
+                />
+            </svg>
+        {/if}
 
-        <!-- Label -->
-        <span class="font-semibold text-sm {colors.text} truncate">
-            {data.label}
-        </span>
+        {#if data.mappedTask}
+            <span class="truncate text-sm font-semibold {colors.text}">
+                {data.label}
+            </span>
+            <span
+                class="inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-violet-300/25 bg-violet-400/15 px-1 text-[9px] font-semibold leading-none text-violet-200"
+                aria-label={`${data.mappedTaskCount} instances`}
+            >
+                {data.mappedTaskCount}
+            </span>
+        {:else}
+            <!-- Label -->
+            <span class="font-semibold text-sm {colors.text} truncate">
+                {data.label}
+            </span>
+        {/if}
 
         <!-- Input handle (top) -->
         <Handle
@@ -290,13 +325,18 @@
 {:else}
     <!-- Expanded state: full group container -->
     <div
-        class="group-node absolute inset-0 rounded-2xl border-2 border-dashed transition-all duration-300 {colors.bg} {colors.border} {selected
+        class="group-node absolute inset-0 rounded-2xl border-2 {data.mappedTask
+            ? 'mapped-task-group border-solid shadow-[0_12px_36px_rgba(109,40,217,0.12),inset_0_1px_0_rgba(255,255,255,0.06)]'
+            : 'border-dashed'} transition-all duration-300 {colors.bg} {colors.border} {selected
             ? 'shadow-lg'
             : ''}"
+        data-mapped-task={data.mappedTask ? "true" : undefined}
     >
         <!-- Group header (clickable to collapse) -->
         <button
-            class="absolute -top-0 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-b-lg px-3 py-1.5 {colors.headerBg} border-x-2 border-b-2 border-dashed {colors.border} hover:opacity-80 transition-opacity cursor-pointer"
+            class="absolute -top-0 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-b-lg px-3 py-1.5 {colors.headerBg} border-x-2 border-b-2 {data.mappedTask
+                ? 'border-solid rounded-b-xl px-4 py-2 shadow-[0_8px_20px_rgba(30,27,75,0.35)]'
+                : 'border-dashed'} {colors.border} hover:opacity-80 transition-opacity cursor-pointer"
             onclick={handleHeaderClick}
             onmouseenter={handleMouseEnter}
             onmouseleave={handleMouseLeave}
@@ -312,19 +352,53 @@
                     clip-rule="evenodd"
                 />
             </svg>
-            <svg
-                class="h-4 w-4 {colors.text}"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-            >
-                <path
-                    d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"
-                />
-            </svg>
+            {#if data.mappedTask}
+                <svg
+                    class="h-4 w-4 {colors.text}"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    viewBox="0 0 20 20"
+                >
+                    <rect x="3" y="3" width="9" height="9" rx="2" />
+                    <path d="M8 15h6a2 2 0 002-2V7" />
+                </svg>
+            {:else}
+                <svg
+                    class="h-4 w-4 {colors.text}"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                >
+                    <path
+                        d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"
+                    />
+                </svg>
+            {/if}
             <span class="font-semibold text-sm {colors.text}">
                 {data.label}
             </span>
+            {#if data.mappedTask}
+                <span
+                    class="inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-violet-300/25 bg-violet-400/15 px-1 text-[9px] font-semibold leading-none text-violet-200"
+                    aria-label={`${data.mappedTaskCount} instances`}
+                >
+                    {data.mappedTaskCount}
+                </span>
+            {/if}
         </button>
+
+        {#if data.mappedTask}
+            <Handle
+                type="target"
+                position={Position.Top}
+                class="!w-3 !h-3 !border-2 !border-white/50 !rounded-full {colors.handleBg}"
+            />
+            <Handle
+                type="source"
+                position={Position.Bottom}
+                class="!w-3 !h-3 !border-2 !border-white/50 !rounded-full {colors.handleBg}"
+            />
+        {/if}
     </div>
 {/if}
 

@@ -135,6 +135,19 @@
                     .filter((p) => p.status === "SKIPPED")
                     .map((p) => p.name),
             );
+            const visibleMappedBaseNames = new Set(
+                allProcesses
+                    .filter(
+                        (p) =>
+                            p.status !== "SKIPPED" &&
+                            p.name_template_substitution !== null,
+                    )
+                    .map(
+                        (p) =>
+                            p.name.match(/^(.*)\[\{\?:.+\}\]$/)?.[1] ?? "",
+                    )
+                    .filter(Boolean),
+            );
 
             // Find all non-skipped ancestors of a process (bridging through skipped ones)
             function getNonSkippedUpstreams(
@@ -164,7 +177,11 @@
 
             // Filter processes and rewire upstream references
             processes = allProcesses
-                .filter((p) => p.status !== "SKIPPED")
+                .filter(
+                    (p) =>
+                        p.status !== "SKIPPED" ||
+                        visibleMappedBaseNames.has(p.name),
+                )
                 .map((p) => ({
                     ...p,
                     upstream_processes: getNonSkippedUpstreams(p.name),

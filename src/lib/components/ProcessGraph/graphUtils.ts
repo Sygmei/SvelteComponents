@@ -1,4 +1,4 @@
-import type { Process, ProcessNodeData } from './types';
+import type { GroupNodeData, Process, ProcessNodeData } from './types';
 import type { Node, Edge } from '@xyflow/svelte';
 import ELK from 'elkjs/lib/elk.bundled.js';
 import type { ElkNode, ElkExtendedEdge } from 'elkjs';
@@ -9,6 +9,7 @@ const NODE_WIDTH = 180;
 const NODE_HEIGHT = 80;
 const GROUP_PADDING = 40;
 const GROUP_HEADER = 40;
+const MAPPED_GRID_GAP = 16;
 
 // Collapsed group dimensions
 const COLLAPSED_GROUP_WIDTH = 280;
@@ -38,6 +39,56 @@ interface GroupInfo {
     parentId: string | null;
     processes: string[];
     childGroups: string[];
+    mappedTasks: string[];
+}
+
+interface MappedTaskInfo {
+    baseProcess: Process;
+    instances: Process[];
+    nodeId: string;
+}
+
+const MAPPED_TASK_NODE_PREFIX = 'mapped-task-';
+
+function getMappedTaskBaseName(processName: string): string | null {
+    const match = processName.match(/^(.*)\[\{\?:.+\}\]$/);
+    return match?.[1] || null;
+}
+
+function getMappedTaskNodeId(baseName: string): string {
+    return `${MAPPED_TASK_NODE_PREFIX}${baseName}`;
+}
+
+/**
+ * A mapped task is represented by one template process plus one or more
+ * resolved instances whose synthetic names end in `[{?:...}]`.
+ */
+function findMappedTasks(processes: Process[]): Map<string, MappedTaskInfo> {
+    const processMap = new Map(processes.map(process => [process.name, process]));
+    const mappedTasks = new Map<string, MappedTaskInfo>();
+
+    processes.forEach(process => {
+        if (process.name_template_substitution === null) return;
+
+        const baseName = getMappedTaskBaseName(process.name);
+        if (!baseName) return;
+
+        const baseProcess = processMap.get(baseName);
+        if (!baseProcess || baseProcess.name_template_substitution !== null) return;
+
+        const existing = mappedTasks.get(baseName);
+        if (existing) {
+            existing.instances.push(process);
+        } else {
+            mappedTasks.set(baseName, {
+                baseProcess,
+                instances: [process],
+                nodeId: getMappedTaskNodeId(baseName)
+            });
+        }
+    });
+
+    return mappedTasks;
 }
 
 /**
@@ -55,8 +106,16 @@ function extractGroup(name: string): string {
 /**
  * Build group hierarchy from processes
  */
-function buildGroupHierarchy(processes: Process[]): Map<string, GroupInfo> {
+function buildGroupHierarchy(
+    processes: Process[],
+    mappedTasks: Map<string, MappedTaskInfo>
+): Map<string, GroupInfo> {
     const groups = new Map<string, GroupInfo>();
+    const mappedInstanceNames = new Set(
+        [...mappedTasks.values()].flatMap(mappedTask =>
+            mappedTask.instances.map(instance => instance.name)
+        )
+    );
 
     processes.forEach(p => {
         const groupPath = extractGroup(p.name);
@@ -75,7 +134,8 @@ function buildGroupHierarchy(processes: Process[]): Map<string, GroupInfo> {
                     path: currentPath,
                     parentId: i > 1 ? parts.slice(0, i - 1).join('.') : null,
                     processes: [],
-                    childGroups: []
+                    childGroups: [],
+                    mappedTasks: []
                 });
             }
         }
@@ -83,7 +143,13 @@ function buildGroupHierarchy(processes: Process[]): Map<string, GroupInfo> {
         // Add process to its direct group
         const directGroup = groups.get(groupPath);
         if (directGroup) {
-            directGroup.processes.push(p.name);
+            if (mappedTasks.has(p.name)) {
+                if (!directGroup.mappedTasks.includes(p.name)) {
+                    directGroup.mappedTasks.push(p.name);
+                }
+            } else if (!mappedInstanceNames.has(p.name)) {
+                directGroup.processes.push(p.name);
+            }
         }
     });
 
@@ -106,6 +172,7 @@ function buildGroupHierarchy(processes: Process[]): Map<string, GroupInfo> {
 function buildElkGraph(
     processes: Process[],
     groups: Map<string, GroupInfo>,
+    mappedTasks: Map<string, MappedTaskInfo>,
     collapsedGroups: Set<string>,
     layoutOptions: LayoutOptions = {}
 ): ElkNode {
@@ -115,6 +182,78 @@ function buildElkGraph(
     const algorithm = layoutOptions.algorithm || 'layered';
     const direction = layoutOptions.direction || 'DOWN';
     const centerNodes = layoutOptions.centerNodes ?? true;
+
+    function getGroupLayoutOptions(): Record<string, string> {
+        const groupLayoutOptions: Record<string, string> = {
+            'elk.algorithm': algorithm,
+            'elk.direction': direction,
+            'elk.spacing.nodeNode': '40',
+            'elk.padding': `[top=${GROUP_HEADER + GROUP_PADDING},left=${GROUP_PADDING},bottom=${GROUP_PADDING},right=${GROUP_PADDING}]`,
+            'elk.hierarchyHandling': 'INCLUDE_CHILDREN'
+        };
+
+        if (algorithm === 'layered') {
+            groupLayoutOptions['elk.layered.spacing.nodeNodeBetweenLayers'] = '60';
+            if (centerNodes) {
+                groupLayoutOptions['elk.layered.nodePlacement.strategy'] = 'NETWORK_SIMPLEX';
+                groupLayoutOptions['elk.alignment'] = 'CENTER';
+            }
+        }
+
+        return groupLayoutOptions;
+    }
+
+    function buildMappedTaskNode(mappedTask: MappedTaskInfo): ElkNode {
+        if (collapsedGroups.has(mappedTask.nodeId)) {
+            return {
+                id: mappedTask.nodeId,
+                width: COLLAPSED_GROUP_WIDTH,
+                height: COLLAPSED_GROUP_HEIGHT,
+                layoutOptions: {
+                    'elk.padding': '[top=10,left=10,bottom=10,right=10]'
+                }
+            };
+        }
+
+        const columnCount = Math.max(
+            1,
+            Math.ceil(Math.sqrt(mappedTask.instances.length))
+        );
+        const rowCount = Math.ceil(
+            mappedTask.instances.length / columnCount
+        );
+        const contentWidth =
+            columnCount * NODE_WIDTH +
+            Math.max(0, columnCount - 1) * MAPPED_GRID_GAP;
+        const contentHeight =
+            rowCount * NODE_HEIGHT +
+            Math.max(0, rowCount - 1) * MAPPED_GRID_GAP;
+
+        return {
+            id: mappedTask.nodeId,
+            width: contentWidth + GROUP_PADDING * 2,
+            height: contentHeight + GROUP_HEADER + GROUP_PADDING * 2,
+            layoutOptions: {
+                'elk.algorithm': 'fixed',
+                'elk.nodeSize.fixedGraphSize': 'true',
+                'elk.hierarchyHandling': 'INCLUDE_CHILDREN'
+            },
+            children: mappedTask.instances.map((instance, index) => ({
+                id: instance.name,
+                x:
+                    GROUP_PADDING +
+                    (index % columnCount) *
+                        (NODE_WIDTH + MAPPED_GRID_GAP),
+                y:
+                    GROUP_HEADER +
+                    GROUP_PADDING +
+                    Math.floor(index / columnCount) *
+                        (NODE_HEIGHT + MAPPED_GRID_GAP),
+                width: NODE_WIDTH,
+                height: NODE_HEIGHT
+            }))
+        };
+    }
 
     // Build group nodes recursively
     function buildGroupNode(group: GroupInfo): ElkNode {
@@ -142,6 +281,13 @@ function buildElkGraph(
             }
         });
 
+        group.mappedTasks.forEach(baseName => {
+            const mappedTask = mappedTasks.get(baseName);
+            if (mappedTask) {
+                children.push(buildMappedTaskNode(mappedTask));
+            }
+        });
+
         // Add direct processes
         group.processes.forEach(processName => {
             children.push({
@@ -151,41 +297,39 @@ function buildElkGraph(
             });
         });
 
-        // Build group layout options
-        const groupLayoutOptions: Record<string, string> = {
-            'elk.algorithm': algorithm,
-            'elk.direction': direction,
-            'elk.spacing.nodeNode': '40',
-            'elk.padding': `[top=${GROUP_HEADER + GROUP_PADDING},left=${GROUP_PADDING},bottom=${GROUP_PADDING},right=${GROUP_PADDING}]`,
-            'elk.hierarchyHandling': 'INCLUDE_CHILDREN'
-        };
-
-        if (algorithm === 'layered') {
-            groupLayoutOptions['elk.layered.spacing.nodeNodeBetweenLayers'] = '60';
-            if (centerNodes) {
-                groupLayoutOptions['elk.layered.nodePlacement.strategy'] = 'NETWORK_SIMPLEX';
-                groupLayoutOptions['elk.alignment'] = 'CENTER';
-            }
-        }
-
         return {
             id: groupNodeId,
-            layoutOptions: groupLayoutOptions,
+            layoutOptions: getGroupLayoutOptions(),
             children
         };
     }
 
     // Build root children
     const rootChildren: ElkNode[] = [];
+    const mappedInstanceNames = new Set(
+        [...mappedTasks.values()].flatMap(mappedTask =>
+            mappedTask.instances.map(instance => instance.name)
+        )
+    );
 
     // Add root-level processes
     processes.forEach(p => {
-        if (!p.name.includes('.')) {
+        if (
+            !p.name.includes('.') &&
+            !mappedTasks.has(p.name) &&
+            !mappedInstanceNames.has(p.name)
+        ) {
             rootChildren.push({
                 id: p.name,
                 width: NODE_WIDTH,
                 height: NODE_HEIGHT
             });
+        }
+    });
+
+    mappedTasks.forEach(mappedTask => {
+        if (extractGroup(mappedTask.baseProcess.name) === 'root') {
+            rootChildren.push(buildMappedTaskNode(mappedTask));
         }
     });
 
@@ -201,8 +345,16 @@ function buildElkGraph(
     processes.forEach(process => {
         process.upstream_processes.forEach(upstream => {
             // Get effective source and target (may be redirected to collapsed group)
-            const effectiveSource = getEffectiveNodeId(upstream, collapsedGroups, groups);
-            const effectiveTarget = getEffectiveNodeId(process.name, collapsedGroups, groups);
+            const effectiveSource = getEffectiveNodeId(
+                upstream,
+                collapsedGroups,
+                mappedTasks
+            );
+            const effectiveTarget = getEffectiveNodeId(
+                process.name,
+                collapsedGroups,
+                mappedTasks
+            );
 
             // Skip self-loops
             if (effectiveSource === effectiveTarget) return;
@@ -254,7 +406,10 @@ function buildElkGraph(
 /**
  * Check if a process is inside a collapsed group
  */
-function isInsideCollapsedGroup(nodeId: string, collapsedGroups: Set<string>, groups: Map<string, GroupInfo>): string | null {
+function isInsideCollapsedGroup(
+    nodeId: string,
+    collapsedGroups: Set<string>
+): string | null {
     const nodeGroup = extractGroup(nodeId);
     if (nodeGroup === 'root') return null;
 
@@ -271,9 +426,24 @@ function isInsideCollapsedGroup(nodeId: string, collapsedGroups: Set<string>, gr
 /**
  * Get effective node ID for edge routing (redirects to collapsed group if needed)
  */
-function getEffectiveNodeId(nodeId: string, collapsedGroups: Set<string>, groups: Map<string, GroupInfo>): string {
-    const collapsedParent = isInsideCollapsedGroup(nodeId, collapsedGroups, groups);
-    return collapsedParent || nodeId;
+function getEffectiveNodeId(
+    nodeId: string,
+    collapsedGroups: Set<string>,
+    mappedTasks: Map<string, MappedTaskInfo>
+): string {
+    const collapsedParent = isInsideCollapsedGroup(nodeId, collapsedGroups);
+    if (collapsedParent) return collapsedParent;
+
+    const mappedTask = mappedTasks.get(nodeId);
+    if (mappedTask) return mappedTask.nodeId;
+
+    const baseName = getMappedTaskBaseName(nodeId);
+    const mappedParent = baseName ? mappedTasks.get(baseName) : undefined;
+    if (mappedParent) {
+        return mappedParent.nodeId;
+    }
+
+    return nodeId;
 }
 
 /**
@@ -284,10 +454,14 @@ function elkToSvelteFlow(
     processes: Process[],
     processMap: Map<string, Process>,
     groups: Map<string, GroupInfo>,
+    mappedTasks: Map<string, MappedTaskInfo>,
     collapsedGroups: Set<string>
 ): { nodes: Node[]; edges: Edge[] } {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
+    const mappedTasksByNodeId = new Map(
+        [...mappedTasks.values()].map(mappedTask => [mappedTask.nodeId, mappedTask])
+    );
 
     // Recursively extract nodes from ELK layout
     function extractNodes(elkNode: ElkNode, parentId?: string, offsetX = 0, offsetY = 0): void {
@@ -297,20 +471,33 @@ function elkToSvelteFlow(
             const x = (child.x || 0) + offsetX;
             const y = (child.y || 0) + offsetY;
 
-            if (child.id.startsWith('group-')) {
+            const mappedTask = child.id.startsWith(MAPPED_TASK_NODE_PREFIX)
+                ? mappedTasksByNodeId.get(child.id)
+                : undefined;
+
+            if (child.id.startsWith('group-') || mappedTask) {
                 const groupId = child.id.replace('group-', '');
                 const group = groups.get(groupId);
                 const isCollapsed = collapsedGroups.has(child.id);
+                const groupData: GroupNodeData = mappedTask
+                    ? {
+                        label: `${mappedTask.baseProcess.resolved_name}[]`,
+                        fullPath: mappedTask.baseProcess.resolved_name,
+                        collapsed: isCollapsed,
+                        mappedTask: true,
+                        mappedTaskCount: mappedTask.instances.length
+                    }
+                    : {
+                        label: group?.path[group.path.length - 1] || groupId,
+                        fullPath: group?.path.join('.') || groupId,
+                        collapsed: isCollapsed
+                    };
 
                 nodes.push({
                     id: child.id,
                     type: 'group',
                     position: { x: child.x || 0, y: child.y || 0 },
-                    data: {
-                        label: group?.path[group.path.length - 1] || groupId,
-                        fullPath: group?.path.join('.') || groupId,
-                        collapsed: isCollapsed
-                    },
+                    data: groupData,
                     style: `width: ${child.width}px; height: ${child.height}px;`,
                     ...(parentId && { parentId })
                 });
@@ -322,6 +509,7 @@ function elkToSvelteFlow(
             } else {
                 // Process node
                 const process = processMap.get(child.id);
+                if (!process) return;
                 const groupPath = extractGroup(child.id);
 
                 nodes.push({
@@ -329,9 +517,11 @@ function elkToSvelteFlow(
                     type: 'process',
                     position: { x: child.x || 0, y: child.y || 0 },
                     data: {
-                        label: child.id,
-                        status: process?.status || 'NOTSTARTED',
-                        errorMessage: process?.last_run_error_message || null,
+                        label: process.resolved_name,
+                        resolvedName: process.resolved_name,
+                        nameTemplateSubstitution: process.name_template_substitution,
+                        status: process.status,
+                        errorMessage: process.last_run_error_message,
                         group: groupPath
                     } satisfies ProcessNodeData,
                     ...(parentId && { parentId })
@@ -346,8 +536,16 @@ function elkToSvelteFlow(
     const addedEdges = new Set<string>();
     processes.forEach(process => {
         process.upstream_processes.forEach(upstream => {
-            const effectiveSource = getEffectiveNodeId(upstream, collapsedGroups, groups);
-            const effectiveTarget = getEffectiveNodeId(process.name, collapsedGroups, groups);
+            const effectiveSource = getEffectiveNodeId(
+                upstream,
+                collapsedGroups,
+                mappedTasks
+            );
+            const effectiveTarget = getEffectiveNodeId(
+                process.name,
+                collapsedGroups,
+                mappedTasks
+            );
 
             if (effectiveSource === effectiveTarget) return;
 
@@ -383,11 +581,25 @@ export async function processesToFlowAsync(
     const processMap = new Map<string, Process>();
     processes.forEach(p => processMap.set(p.name, p));
 
-    const groups = buildGroupHierarchy(processes);
-    const elkGraph = buildElkGraph(processes, groups, collapsedGroups, layoutOptions);
+    const mappedTasks = findMappedTasks(processes);
+    const groups = buildGroupHierarchy(processes, mappedTasks);
+    const elkGraph = buildElkGraph(
+        processes,
+        groups,
+        mappedTasks,
+        collapsedGroups,
+        layoutOptions
+    );
     const layoutedGraph = await elk.layout(elkGraph);
 
-    return elkToSvelteFlow(layoutedGraph, processes, processMap, groups, collapsedGroups);
+    return elkToSvelteFlow(
+        layoutedGraph,
+        processes,
+        processMap,
+        groups,
+        mappedTasks,
+        collapsedGroups
+    );
 }
 
 /**
