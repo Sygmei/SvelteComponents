@@ -3,6 +3,7 @@
   import { RulePolicyManager } from "$lib/components/RulePolicyManager";
   import type {
     Rule,
+    RuleSection,
     FilterDefinition,
     PayloadTestResult,
     RuleChangeSummary,
@@ -286,10 +287,23 @@
     },
   ];
 
+  const sections: RuleSection[] = [
+    {
+      id: "organization-defaults",
+      name: "Organization defaults",
+      readOnly: true,
+    },
+    {
+      id: "workspace-rules",
+      name: "Workspace rules",
+    },
+  ];
+
   // Initial rules
   let rules = $state<Rule[]>([
     {
       id: "rule-1",
+      sectionId: "organization-defaults",
       name: "Allow Admins",
       action: "ALLOW",
       enabled: true,
@@ -303,6 +317,7 @@
     },
     {
       id: "rule-2",
+      sectionId: "organization-defaults",
       name: "Deny Guests",
       action: "DENY",
       enabled: true,
@@ -319,6 +334,7 @@
     },
     {
       id: "rule-3",
+      sectionId: "workspace-rules",
       name: "Allow Pro Editors",
       action: "ALLOW",
       enabled: false,
@@ -333,6 +349,7 @@
     },
     {
       id: "rule-4",
+      sectionId: "workspace-rules",
       name: "Allow Privileged Roles",
       action: "ALLOW",
       enabled: true,
@@ -343,6 +360,7 @@
     },
     {
       id: "rule-5",
+      sectionId: "workspace-rules",
       name: "Geo-restricted Access",
       action: "ALLOW",
       enabled: true,
@@ -452,6 +470,7 @@
       <RulePolicyManager
         bind:rules
         bind:isDirty
+        {sections}
         {filtersDefinitions}
         {testPayload}
         onRulesChange={handleRulesChange}
@@ -470,7 +489,13 @@
         class="list-disc list-inside space-y-1 text-sm text-surface-700 dark:text-surface-300"
       >
         <li>
-          <strong>Drag</strong> the ⠿ handle to reorder rules — priority is top-to-bottom
+          Rules are grouped into dynamic <strong>read-only</strong> or <strong
+            >read-write</strong
+          > sections
+        </li>
+        <li>
+          <strong>Drag</strong> the ⠿ handle to reorder rules within a read-write
+          section — rules cannot move between sections
         </li>
         <li>
           <strong>Click the mode badge</strong> (✓ ALLOW / ✕ DENY) to toggle between
@@ -484,8 +509,8 @@
           <strong>Expand a rule</strong> with the chevron to edit its property conditions
         </li>
         <li>
-          Open the <strong>Test Payload</strong> tab and enter a JSON object to see
-          which rule fires first
+          Read-only sections allow inspection, but prevent adding, modifying,
+          duplicating, deleting, and reordering rules
         </li>
       </ul>
     </section>
@@ -499,7 +524,7 @@
       </header>
       <pre
         class="text-xs bg-surface-100 dark:bg-surface-800 rounded-xl p-4 overflow-x-auto text-surface-800 dark:text-surface-200 font-mono">{JSON.stringify(
-          rules,
+          { sections, rules },
           null,
           2,
         )}</pre>

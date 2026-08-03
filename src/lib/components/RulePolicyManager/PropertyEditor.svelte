@@ -1,17 +1,23 @@
 <script lang="ts">
-  import type { FilterDefinition, RuleFilter, AutocompleteSuggestion } from "./types.js";
+  import type {
+    FilterDefinition,
+    RuleFilter,
+    AutocompleteSuggestion,
+  } from "./types.js";
   import DateTimeInput from "./DateTimeInput.svelte";
 
   interface Props {
     propertyDefinitions: FilterDefinition[];
     filters: RuleFilter[];
     onFiltersChange: (filters: RuleFilter[]) => void;
+    readOnly?: boolean;
   }
 
   let {
     propertyDefinitions,
     filters: properties,
     onFiltersChange: onPropertiesChange,
+    readOnly = false,
   }: Props = $props();
 
   // scalar mirrors
@@ -29,11 +35,14 @@
   });
 
   function commitValue(key: string, rawValue: string | null) {
+    if (readOnly) return;
     const def = propertyDefinitions.find((d) => d.key === key);
     let value: string | number | boolean | null = rawValue;
-    if (def?.type === "date") value = rawValue; // null or RFC3339 string
+    if (def?.type === "date")
+      value = rawValue; // null or RFC3339 string
     else if (def?.type === "string") value = rawValue === "" ? null : rawValue;
-    else if (def?.type === "number") value = (rawValue ?? "") === "" ? 0 : Number(rawValue);
+    else if (def?.type === "number")
+      value = (rawValue ?? "") === "" ? 0 : Number(rawValue);
     else if (def?.type === "boolean") value = rawValue === "true";
 
     const existing = properties.findIndex((p) => p.key === key);
@@ -59,6 +68,7 @@
   }
 
   function commitArrayChange(key: string, newArray: string[]) {
+    if (readOnly) return;
     const existing = properties.findIndex((p) => p.key === key);
     if (existing >= 0) {
       const updated = [...properties];
@@ -70,12 +80,14 @@
   }
 
   function removeArrayItem(key: string, index: number) {
+    if (readOnly) return;
     const arr = [...getArray(key)];
     arr.splice(index, 1);
     commitArrayChange(key, arr);
   }
 
   function addArrayItem(key: string) {
+    if (readOnly) return;
     const val = arrayNewValue[key];
     if (val === undefined || val === "") return;
     commitArrayChange(key, [...getArray(key), val]);
@@ -84,23 +96,23 @@
   }
 
   function openArrayAdder(key: string, def: FilterDefinition) {
+    if (readOnly) return;
     arrayAddingKey = key;
     arrayNewValue = { ...arrayNewValue, [key]: "" };
   }
 
   // shared
   function resetProperty(key: string) {
+    if (readOnly) return;
     const def = propertyDefinitions.find((d) => d.key === key);
-    const defaultValue:
-      | string
-      | number
-      | boolean
-      | string[]
-      | null =
-      def?.type === "array" ? [] :
-      def?.type === "number" ? 0 :
-      def?.type === "boolean" ? false :
-      null;
+    const defaultValue: string | number | boolean | string[] | null =
+      def?.type === "array"
+        ? []
+        : def?.type === "number"
+          ? 0
+          : def?.type === "boolean"
+            ? false
+            : null;
     const existing = properties.findIndex((p) => p.key === key);
     if (existing >= 0) {
       const updated = [...properties];
@@ -109,7 +121,7 @@
     }
   }
 
-  // ── Autocomplete ────────────────────────────────────────────────────────
+  // Autocomplete
   let acSuggestions = $state<Record<string, AutocompleteSuggestion[]>>({});
   let acOpen = $state<Record<string, boolean>>({});
   let acLoading = $state<Record<string, boolean>>({});
@@ -122,7 +134,12 @@
     return typeof s === "string" ? s : s.label;
   }
 
-  async function fetchSuggestions(acKey: string, query: string, def: FilterDefinition) {
+  async function fetchSuggestions(
+    acKey: string,
+    query: string,
+    def: FilterDefinition,
+  ) {
+    if (readOnly) return;
     if (!def.autocomplete) return;
     acLoading = { ...acLoading, [acKey]: true };
     acHighlight = { ...acHighlight, [acKey]: -1 };
@@ -135,20 +152,31 @@
     }
   }
 
-  function acSelect(acKey: string, suggestion: AutocompleteSuggestion, onSelect: (v: string) => void) {
+  function acSelect(
+    acKey: string,
+    suggestion: AutocompleteSuggestion,
+    onSelect: (v: string) => void,
+  ) {
     onSelect(acSuggestionValue(suggestion));
     acOpen = { ...acOpen, [acKey]: false };
     acSuggestions = { ...acSuggestions, [acKey]: [] };
     acHighlight = { ...acHighlight, [acKey]: -1 };
   }
 
-  function acKeydown(e: KeyboardEvent, acKey: string, onEnter: (v: string) => void) {
+  function acKeydown(
+    e: KeyboardEvent,
+    acKey: string,
+    onEnter: (v: string) => void,
+  ) {
     const suggestions = acSuggestions[acKey] ?? [];
     if (!acOpen[acKey] || suggestions.length === 0) return;
     const hi = acHighlight[acKey] ?? -1;
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      acHighlight = { ...acHighlight, [acKey]: Math.min(hi + 1, suggestions.length - 1) };
+      acHighlight = {
+        ...acHighlight,
+        [acKey]: Math.min(hi + 1, suggestions.length - 1),
+      };
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       acHighlight = { ...acHighlight, [acKey]: Math.max(hi - 1, -1) };
@@ -162,7 +190,9 @@
 
   function acBlur(acKey: string) {
     // delay so mousedown on a suggestion fires before blur closes the list
-    setTimeout(() => { acOpen = { ...acOpen, [acKey]: false }; }, 150);
+    setTimeout(() => {
+      acOpen = { ...acOpen, [acKey]: false };
+    }, 150);
   }
 
   const inputClass =
@@ -176,7 +206,7 @@
 </script>
 
 <div class="pt-3 pb-1 flex flex-col gap-1">
-  <!-- ── Existing properties ─────────────────────────────────────────────── -->
+  <!-- Existing properties -->
   {#each properties as prop (prop.key)}
     {@const def = propertyDefinitions.find((d) => d.key === prop.key)}
 
@@ -198,19 +228,20 @@
           {@const arr = getArray(prop.key)}
 
           {#if def.itemType === "enum" && def.itemEnumValues}
-            <!-- ── Enum array: toggleable pill checkboxes ─────────────────── -->
+            <!-- Enum array: toggleable pill checkboxes -->
             <div class="flex flex-wrap gap-1 py-0.5">
               {#each def.itemEnumValues as val}
                 {@const checked = arr.includes(val)}
                 <button
                   type="button"
+                  disabled={readOnly}
                   onclick={() => {
                     const next = checked
                       ? arr.filter((v) => v !== val)
                       : [...arr, val];
                     commitArrayChange(prop.key, next);
                   }}
-                  class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border transition-colors leading-none
+                  class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border transition-colors leading-none disabled:cursor-default
                     {checked
                     ? 'bg-primary-100 dark:bg-primary-950 text-primary-700 dark:text-primary-300 border-primary-300 dark:border-primary-700'
                     : 'bg-white dark:bg-surface-900 text-surface-400 dark:text-surface-500 border-surface-300 dark:border-surface-600 hover:border-primary-300 dark:hover:border-primary-700 hover:text-primary-600 dark:hover:text-primary-400'}"
@@ -241,7 +272,7 @@
               {/each}
             </div>
           {:else}
-            <!-- ── Free-text array: chips + adder ─────────────────────────── -->
+            <!-- Free-text array: chips + adder -->
             <div class="flex flex-col gap-1.5">
               <div class="flex flex-wrap gap-1 min-h-[26px] items-center">
                 {#if arr.length === 0}
@@ -285,21 +316,23 @@
                         </svg>
                       {/if}
                       {item}
-                      <button
-                        type="button"
-                        onclick={() => removeArrayItem(prop.key, i)}
-                        class="w-3.5 h-3.5 flex items-center justify-center rounded-full transition-colors leading-none
-                          {chipInvalid
-                          ? 'text-error-400 dark:text-error-600 hover:bg-error-100 dark:hover:bg-error-900 hover:text-error-600 dark:hover:text-error-400'
-                          : 'text-primary-400 dark:text-primary-600 hover:bg-error-100 dark:hover:bg-error-900 hover:text-error-600 dark:hover:text-error-400'}"
-                        aria-label="Remove {item}">×</button
-                      >
+                      {#if !readOnly}
+                        <button
+                          type="button"
+                          onclick={() => removeArrayItem(prop.key, i)}
+                          class="w-3.5 h-3.5 flex items-center justify-center rounded-full transition-colors leading-none
+                            {chipInvalid
+                            ? 'text-error-400 dark:text-error-600 hover:bg-error-100 dark:hover:bg-error-900 hover:text-error-600 dark:hover:text-error-400'
+                            : 'text-primary-400 dark:text-primary-600 hover:bg-error-100 dark:hover:bg-error-900 hover:text-error-600 dark:hover:text-error-400'}"
+                          aria-label="Remove {item}">×</button
+                        >
+                      {/if}
                     </span>
                   {/each}
                 {/if}
               </div>
 
-              {#if arrayAddingKey === prop.key}
+              {#if !readOnly && arrayAddingKey === prop.key}
                 {@const acKey = prop.key + ":array"}
                 {@const arrRegexInvalid =
                   !!def.validationRegex &&
@@ -316,16 +349,32 @@
                         bind:value={arrayNewValue[prop.key]}
                         placeholder={def.placeholder ?? "Value…"}
                         oninput={() => {
-                          if (def.autocomplete && def.itemType !== "number") fetchSuggestions(acKey, arrayNewValue[prop.key], def);
+                          if (def.autocomplete && def.itemType !== "number")
+                            fetchSuggestions(
+                              acKey,
+                              arrayNewValue[prop.key],
+                              def,
+                            );
                         }}
                         onfocus={() => {
-                          if (def.autocomplete && def.itemType !== "number") fetchSuggestions(acKey, arrayNewValue[prop.key] ?? "", def);
+                          if (def.autocomplete && def.itemType !== "number")
+                            fetchSuggestions(
+                              acKey,
+                              arrayNewValue[prop.key] ?? "",
+                              def,
+                            );
                         }}
                         onblur={() => acBlur(acKey)}
                         onkeydown={(e) => {
-                          acKeydown(e, acKey, (v) => { arrayNewValue = { ...arrayNewValue, [prop.key]: v }; });
-                          if (!acOpen[acKey] || (acHighlight[acKey] ?? -1) < 0) {
-                            if (e.key === "Enter" && !arrRegexInvalid) addArrayItem(prop.key);
+                          acKeydown(e, acKey, (v) => {
+                            arrayNewValue = { ...arrayNewValue, [prop.key]: v };
+                          });
+                          if (
+                            !acOpen[acKey] ||
+                            (acHighlight[acKey] ?? -1) < 0
+                          ) {
+                            if (e.key === "Enter" && !arrRegexInvalid)
+                              addArrayItem(prop.key);
                           }
                         }}
                         class="{inputClass} {arrRegexInvalid
@@ -333,7 +382,9 @@
                           : ''}"
                       />
                       {#if acOpen[acKey] && suggestions.length > 0}
-                        {@render acDropdown(acKey, suggestions, (v) => { arrayNewValue = { ...arrayNewValue, [prop.key]: v }; })}
+                        {@render acDropdown(acKey, suggestions, (v) => {
+                          arrayNewValue = { ...arrayNewValue, [prop.key]: v };
+                        })}
                       {/if}
                     </div>
                     <button
@@ -360,7 +411,7 @@
                     </span>
                   {/if}
                 </div>
-              {:else}
+              {:else if !readOnly}
                 <button
                   type="button"
                   onclick={() => openArrayAdder(prop.key, def)}
@@ -375,6 +426,7 @@
           <select
             bind:value={inputMirrors[prop.key]}
             onchange={() => commitValue(prop.key, inputMirrors[prop.key])}
+            disabled={readOnly}
             class={inputClass}
           >
             <option value="true">True</option>
@@ -384,6 +436,7 @@
           <select
             bind:value={inputMirrors[prop.key]}
             onchange={() => commitValue(prop.key, inputMirrors[prop.key])}
+            disabled={readOnly}
             class={inputClass}
           >
             <option value="" disabled>Select…</option>
@@ -396,6 +449,7 @@
             value={(prop.value as string | null) ?? null}
             onchange={(v) => commitValue(prop.key, v)}
             {inputClass}
+            disabled={readOnly}
           />
         {:else}
           {@const regexInvalid =
@@ -409,20 +463,32 @@
               <input
                 type={def?.type === "number" ? "number" : "text"}
                 bind:value={inputMirrors[prop.key]}
+                readonly={readOnly}
                 oninput={() => {
                   commitValue(prop.key, inputMirrors[prop.key]);
-                  if (def?.autocomplete && def.type === "string") fetchSuggestions(acKey, inputMirrors[prop.key], def);
+                  if (def?.autocomplete && def.type === "string")
+                    fetchSuggestions(acKey, inputMirrors[prop.key], def);
                 }}
                 onfocus={() => {
-                  if (def?.autocomplete && def?.type === "string") fetchSuggestions(acKey, inputMirrors[prop.key] ?? "", def);
+                  if (def?.autocomplete && def?.type === "string")
+                    fetchSuggestions(acKey, inputMirrors[prop.key] ?? "", def);
                 }}
                 onblur={() => acBlur(acKey)}
-                onkeydown={(e) => acKeydown(e, acKey, (v) => { inputMirrors[prop.key] = v; commitValue(prop.key, v); })}
+                onkeydown={(e) =>
+                  acKeydown(e, acKey, (v) => {
+                    inputMirrors[prop.key] = v;
+                    commitValue(prop.key, v);
+                  })}
                 placeholder={def?.placeholder ?? ""}
-                class="{inputClass} {regexInvalid ? '!border-error-400 dark:!border-error-600 focus:!ring-error-400' : ''}"
+                class="{inputClass} {regexInvalid
+                  ? '!border-error-400 dark:!border-error-600 focus:!ring-error-400'
+                  : ''}"
               />
               {#if acOpen[acKey] && suggestions.length > 0}
-                {@render acDropdown(acKey, suggestions, (v) => { inputMirrors[prop.key] = v; commitValue(prop.key, v); })}
+                {@render acDropdown(acKey, suggestions, (v) => {
+                  inputMirrors[prop.key] = v;
+                  commitValue(prop.key, v);
+                })}
               {/if}
             </div>
             {#if regexInvalid}
@@ -441,23 +507,39 @@
 
       <!-- Reset button -->
       <div class="flex items-center h-7">
-        <button
-          type="button"
-          onclick={() => resetProperty(prop.key)}
-          class="opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 flex items-center justify-center rounded-md text-surface-400 dark:text-surface-500 hover:bg-surface-200 dark:hover:bg-surface-700 hover:text-surface-600 dark:hover:text-surface-300 text-sm"
-          title="Reset to default"
-          aria-label="Reset filter">
-          <svg width="11" height="11" viewBox="-1 -1 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M10.5 2.5A5 5 0 1 0 11 6"/>
-            <polyline points="8,0.5 11,2.5 8.5,5.5"/>
+        {#if !readOnly}
+          <button
+            type="button"
+            onclick={() => resetProperty(prop.key)}
+            class="opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 flex items-center justify-center rounded-md text-surface-400 dark:text-surface-500 hover:bg-surface-200 dark:hover:bg-surface-700 hover:text-surface-600 dark:hover:text-surface-300 text-sm"
+            title="Reset to default"
+            aria-label="Reset filter"
+          >
+          <svg
+            width="11"
+            height="11"
+            viewBox="-1 -1 14 14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M10.5 2.5A5 5 0 1 0 11 6" />
+            <polyline points="8,0.5 11,2.5 8.5,5.5" />
           </svg>
-        </button>
+          </button>
+        {/if}
       </div>
     </div>
   {/each}
 </div>
 
-{#snippet acDropdown(acKey: string, suggestions: AutocompleteSuggestion[], onSelect: (v: string) => void)}
+{#snippet acDropdown(
+  acKey: string,
+  suggestions: AutocompleteSuggestion[],
+  onSelect: (v: string) => void,
+)}
   <ul
     class="absolute z-20 left-0 right-0 top-full mt-0.5 max-h-40 overflow-y-auto rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 shadow-lg py-0.5 text-xs"
     role="listbox"
@@ -468,13 +550,20 @@
         aria-selected={acHighlight[acKey] === i}
         class="px-3 py-1.5 cursor-pointer truncate transition-colors
           {acHighlight[acKey] === i
-            ? 'bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300'
-            : 'text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800'}"
-        onmousedown={(e) => { e.preventDefault(); acSelect(acKey, suggestion, onSelect); }}
-      >{acSuggestionLabel(suggestion)}</li>
+          ? 'bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300'
+          : 'text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800'}"
+        onmousedown={(e) => {
+          e.preventDefault();
+          acSelect(acKey, suggestion, onSelect);
+        }}
+      >
+        {acSuggestionLabel(suggestion)}
+      </li>
     {/each}
     {#if acLoading[acKey]}
-      <li class="px-3 py-1.5 text-surface-400 dark:text-surface-500 italic">Loading…</li>
+      <li class="px-3 py-1.5 text-surface-400 dark:text-surface-500 italic">
+        Loading…
+      </li>
     {/if}
   </ul>
 {/snippet}

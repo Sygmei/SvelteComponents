@@ -3,9 +3,10 @@
         value: string | null; // RFC3339 string, or null when unset
         onchange: (rfc3339: string | null) => void;
         inputClass?: string;
+        disabled?: boolean;
     }
 
-    let { value, onchange, inputClass = "" }: Props = $props();
+    let { value, onchange, inputClass = "", disabled = false }: Props = $props();
 
     // ── timezone offset options ───────────────────────────────────────────────
     const TZ_OFFSETS: { label: string; value: string }[] = [
@@ -81,6 +82,7 @@
     });
 
     function emit() {
+        if (disabled) return;
         if (!localDt) {
             onchange(null);
             return;
@@ -99,11 +101,13 @@
         type="datetime-local"
         bind:value={localDt}
         oninput={emit}
+        {disabled}
         class="{inputClass} flex-1 min-w-0"
     />
     <select
         bind:value={tzOffset}
         onchange={emit}
+        {disabled}
         class={selectClass}
         title="Timezone offset"
     >

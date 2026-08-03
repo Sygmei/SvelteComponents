@@ -42,11 +42,20 @@ export interface RuleMetadata {
 
 export interface Rule {
   id: string;
+  /** Section membership. Required when `RulePolicyManagerProps.sections` is provided. */
+  sectionId?: string;
   name: string;
   action: RuleAction;
   enabled: boolean;
   filters: RuleFilter[];
   metadata?: RuleMetadata;
+}
+
+export interface RuleSection {
+  id: string;
+  name: string;
+  /** Prevents adding, editing, deleting, duplicating, or reordering rules. */
+  readOnly?: boolean;
 }
 
 export interface PayloadTestResult {
@@ -77,6 +86,11 @@ export interface RuleChangeSummary {
 
 export interface RulePolicyManagerProps {
   rules?: Rule[];
+  /**
+   * Sections used to group rules by `Rule.sectionId`.
+   * Omit this prop to keep the legacy single editable section behavior.
+   */
+  sections?: RuleSection[];
   filtersDefinitions?: FilterDefinition[];
   /** Tracks whether current rules differ from the last-saved snapshot */
   isDirty?: boolean;
