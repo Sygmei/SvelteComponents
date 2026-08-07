@@ -6,9 +6,14 @@
         disabled?: boolean;
     }
 
-    let { value, onchange, inputClass = "", disabled = false }: Props = $props();
+    let {
+        value,
+        onchange,
+        inputClass = "",
+        disabled = false,
+    }: Props = $props();
 
-    // ── timezone offset options ───────────────────────────────────────────────
+    // timezone offset options
     const TZ_OFFSETS: { label: string; value: string }[] = [
         { label: "UTC-12:00", value: "-12:00" },
         { label: "UTC-11:00", value: "-11:00" },
@@ -47,7 +52,7 @@
         { label: "UTC+14:00", value: "+14:00" },
     ];
 
-    // ── detect local UTC offset as ±HH:MM string ─────────────────────────────
+    // detect local UTC offset as ±HH:MM string
     function localOffsetString(): string {
         const offsetMin = -new Date().getTimezoneOffset();
         const sign = offsetMin >= 0 ? "+" : "-";
@@ -57,7 +62,7 @@
         return `${sign}${hh}:${mm}`;
     }
 
-    // ── parse incoming RFC3339 value ──────────────────────────────────────────
+    // parse incoming RFC3339 value
     // Accepted: "2024-01-01T13:00:00+01:00" or empty
     function parseRfc3339(v: string): { local: string; tz: string } {
         const match = v.match(

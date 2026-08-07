@@ -48,6 +48,9 @@
         ? [...sections, UNASSIGNED_SECTION]
         : sections,
   );
+  const writableSections = $derived(
+    displaySections.filter((section) => !section.readOnly),
+  );
 
   // saved snapshot
   // Deep-cloned at mount; updated only when the user confirms a save.
@@ -83,19 +86,23 @@
   }
 
   function isSectionReadOnly(sectionId: string): boolean {
-    return displaySections.find((section) => section.id === sectionId)?.readOnly === true;
+    return (
+      displaySections.find((section) => section.id === sectionId)?.readOnly ===
+      true
+    );
+  }
+
+  function sectionForRule(rule: Rule): RuleSection {
+    if (sections.length === 0) return DEFAULT_SECTION;
+    if (rule.sectionId != null && configuredSectionIds.has(rule.sectionId)) {
+      return sections.find((section) => section.id === rule.sectionId)!;
+    }
+    return UNASSIGNED_SECTION;
   }
 
   function isRuleWritable(id: string): boolean {
     const rule = rules.find((candidate) => candidate.id === id);
-    if (!rule) return false;
-    const sectionId =
-      sections.length === 0
-        ? DEFAULT_SECTION.id
-        : rule.sectionId != null && configuredSectionIds.has(rule.sectionId)
-          ? rule.sectionId
-          : UNASSIGNED_SECTION.id;
-    return !isSectionReadOnly(sectionId);
+    return rule != null && !sectionForRule(rule).readOnly;
   }
 
   function defaultFilterValue(
@@ -215,6 +222,47 @@
     notify();
   }
 
+  function moveRuleToSection(
+    id: string,
+    targetSectionId: string,
+    targetIndex = getSectionRules(targetSectionId).length,
+  ) {
+    if (sections.length === 0 || isSectionReadOnly(targetSectionId)) return;
+    const sourceRule = rules.find((rule) => rule.id === id);
+    if (!sourceRule) return;
+    const sourceSection = sectionForRule(sourceRule);
+    if (sourceSection.readOnly || sourceSection.id === targetSectionId) return;
+
+    const targetRules = getSectionRules(targetSectionId);
+    const sourceRules = getSectionRules(sourceSection.id);
+    const sourceIndex = sourceRules.findIndex((rule) => rule.id === id);
+    if (sourceIndex < 0) return;
+
+    const movedRule = { ...sourceRule, sectionId: targetSectionId };
+    const boundedTargetIndex = Math.max(
+      0,
+      Math.min(targetIndex, targetRules.length),
+    );
+    const targetAnchor = targetRules[boundedTargetIndex];
+    const remainingRules = rules.filter((rule) => rule.id !== id);
+    let insertionIndex = remainingRules.length;
+    if (targetAnchor) {
+      insertionIndex = remainingRules.findIndex(
+        (rule) => rule.id === targetAnchor.id,
+      );
+    } else if (targetRules.length > 0) {
+      const lastTargetRule = targetRules[targetRules.length - 1];
+      const lastTargetIndex = remainingRules.findIndex(
+        (rule) => rule.id === lastTargetRule.id,
+      );
+      insertionIndex = lastTargetIndex + 1;
+    }
+
+    remainingRules.splice(insertionIndex, 0, movedRule);
+    rules = remainingRules;
+    notify();
+  }
+
   // drag & drop
   function onDragStart(e: DragEvent, sectionId: string, index: number) {
     if (isSectionReadOnly(sectionId)) {
@@ -230,8 +278,9 @@
 
   function onDragOver(e: DragEvent, sectionId: string, index: number) {
     if (
-      dragLocation?.sectionId !== sectionId ||
-      isSectionReadOnly(sectionId)
+      dragLocation === null ||
+      isSectionReadOnly(sectionId) ||
+      isSectionReadOnly(dragLocation.sectionId)
     ) {
       if (e.dataTransfer) e.dataTransfer.dropEffect = "none";
       return;
@@ -242,6 +291,20 @@
     dropPosition = e.clientY < rect.top + rect.height / 2 ? index : index + 1;
   }
 
+  function onEmptySectionDragOver(e: DragEvent, sectionId: string) {
+    if (
+      dragLocation === null ||
+      isSectionReadOnly(sectionId) ||
+      isSectionReadOnly(dragLocation.sectionId)
+    ) {
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "none";
+      return;
+    }
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+    dropPosition = 0;
+  }
+
   function onDragLeave() {
     dropPosition = null;
   }
@@ -250,14 +313,26 @@
     e.preventDefault();
     if (
       dragLocation === null ||
-      dragLocation.sectionId !== sectionId ||
       dropPosition === null ||
-      isSectionReadOnly(sectionId)
+      isSectionReadOnly(sectionId) ||
+      isSectionReadOnly(dragLocation.sectionId)
     ) {
       dragLocation = null;
       dropPosition = null;
       return;
     }
+    const sourceSectionId = dragLocation.sectionId;
+    if (sourceSectionId !== sectionId) {
+      const sourceRules = getSectionRules(sourceSectionId);
+      const movedRule = sourceRules[dragLocation.index];
+      if (movedRule) {
+        moveRuleToSection(movedRule.id, sectionId, dropPosition);
+      }
+      dragLocation = null;
+      dropPosition = null;
+      return;
+    }
+
     const sectionRules = getSectionRules(sectionId);
     // Adjust for the gap left after removing the dragged item
     let target = dropPosition;
@@ -298,14 +373,22 @@
     for (const rule of current) {
       const prev = savedMap.get(rule.id);
       if (!prev || JSON.stringify(rule) === JSON.stringify(prev)) continue;
-      const changedFields: Array<"name" | "action" | "enabled" | "filters"> =
-        [];
+      const changedFields: Array<
+        "name" | "action" | "enabled" | "filters" | "sectionId"
+      > = [];
       if (rule.name !== prev.name) changedFields.push("name");
       if (rule.action !== prev.action) changedFields.push("action");
       if (rule.enabled !== prev.enabled) changedFields.push("enabled");
       if (JSON.stringify(rule.filters) !== JSON.stringify(prev.filters))
         changedFields.push("filters");
-      modified.push({ rule, previous: prev, changedFields });
+      if (rule.sectionId !== prev.sectionId) changedFields.push("sectionId");
+      modified.push({
+        rule,
+        previous: prev,
+        changedFields,
+        previousSection: sectionForRule(prev),
+        currentSection: sectionForRule(rule),
+      });
     }
 
     const previousOrder = saved
@@ -484,7 +567,10 @@
         >
           {#if sectionRules.length === 0}
             <div
+              role="listitem"
               class="flex flex-col items-center justify-center py-9 text-surface-400 dark:text-surface-500 gap-1.5"
+              ondragover={(e) => onEmptySectionDragOver(e, section.id)}
+              ondrop={(e) => onDrop(e, section.id)}
             >
               <span class="text-2xl">📋</span>
               <p class="text-sm font-medium">No rules in this section</p>
@@ -501,14 +587,18 @@
             {@const isDragging =
               dragLocation?.sectionId === section.id &&
               dragLocation.index === index}
+            {@const isDropTarget =
+              dragLocation !== null && !section.readOnly}
             {@const showLineBefore =
+              isDropTarget &&
               dropPosition === index &&
-              dragLocation?.sectionId === section.id &&
-              dragLocation.index !== index}
+              (dragLocation?.sectionId !== section.id ||
+                dragLocation.index !== index)}
             {@const showLineAfter =
+              isDropTarget &&
               dropPosition === index + 1 &&
-              dragLocation?.sectionId === section.id &&
-              dragLocation.index !== index}
+              (dragLocation?.sectionId !== section.id ||
+                dragLocation.index !== index)}
 
       <div
         role="listitem"
@@ -707,6 +797,23 @@
               >
                 ×
               </button>
+            {/if}
+            {#if !section.readOnly && writableSections.length > 1}
+              <select
+                value={section.id}
+                onchange={(e) =>
+                  moveRuleToSection(
+                    rule.id,
+                    (e.currentTarget as HTMLSelectElement).value,
+                  )}
+                class="max-w-28 text-[10px] rounded-md border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-surface-600 dark:text-surface-300 px-1 py-1 focus:outline-none focus:ring-1 focus:ring-primary-400"
+                title="Move rule to section"
+                aria-label="Move {rule.name} to section"
+              >
+                {#each writableSections as targetSection (targetSection.id)}
+                  <option value={targetSection.id}>{targetSection.name}</option>
+                {/each}
+              </select>
             {/if}
             <button
               type="button"

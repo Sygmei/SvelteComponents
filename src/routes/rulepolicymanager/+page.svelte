@@ -297,6 +297,10 @@
       id: "workspace-rules",
       name: "Workspace rules",
     },
+    {
+      id: "team-overrides",
+      name: "Team overrides",
+    },
   ];
 
   // Initial rules
@@ -360,7 +364,7 @@
     },
     {
       id: "rule-5",
-      sectionId: "workspace-rules",
+      sectionId: "team-overrides",
       name: "Geo-restricted Access",
       action: "ALLOW",
       enabled: true,
@@ -495,7 +499,7 @@
         </li>
         <li>
           <strong>Drag</strong> the ⠿ handle to reorder rules within a read-write
-          section — rules cannot move between sections
+          section, or move a rule between two read-write sections
         </li>
         <li>
           <strong>Click the mode badge</strong> (✓ ALLOW / ✕ DENY) to toggle between
@@ -510,7 +514,7 @@
         </li>
         <li>
           Read-only sections allow inspection, but prevent adding, modifying,
-          duplicating, deleting, and reordering rules
+          duplicating, deleting, reordering, or receiving migrated rules
         </li>
       </ul>
     </section>

@@ -69,7 +69,13 @@ export interface RuleModification {
   rule: Rule;
   previous: Rule;
   /** Which top-level fields changed */
-  changedFields: Array<"name" | "action" | "enabled" | "filters">;
+  changedFields: Array<
+    "name" | "action" | "enabled" | "filters" | "sectionId"
+  >;
+  /** Section before the change, when section metadata is available. */
+  previousSection?: RuleSection;
+  /** Section after the change, when section metadata is available. */
+  currentSection?: RuleSection;
 }
 
 export interface RuleChangeSummary {

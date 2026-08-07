@@ -93,7 +93,7 @@
     {onCancel}
 >
     <div class="space-y-5 text-sm">
-        <!-- ── Summary badges ──────────────────────────────────────────────────── -->
+        <!-- Summary badges -->
         <div class="flex flex-wrap gap-2">
             {#if summary.added.length > 0}
                 <span
@@ -132,7 +132,7 @@
             {/if}
         </div>
 
-        <!-- ── Reorder ──────────────────────────────────────────────────────────── -->
+        <!-- Reorder -->
         {#if summary.reordered}
             <section>
                 <div class="flex items-center gap-2.5 mb-2.5">
@@ -240,7 +240,7 @@
             </section>
         {/if}
 
-        <!-- ── Added ────────────────────────────────────────────────────────────── -->
+        <!-- Added -->
         {#if summary.added.length > 0}
             <section>
                 <div class="flex items-center gap-2.5 mb-2.5">
@@ -334,7 +334,7 @@
             </section>
         {/if}
 
-        <!-- ── Removed ──────────────────────────────────────────────────────────── -->
+        <!-- Removed -->
         {#if summary.removed.length > 0}
             <section>
                 <div class="flex items-center gap-2.5 mb-2.5">
@@ -400,7 +400,7 @@
             </section>
         {/if}
 
-        <!-- ── Modified ─────────────────────────────────────────────────────────── -->
+        <!-- Modified -->
         {#if summary.modified.length > 0}
             <section>
                 <div class="flex items-center gap-2.5 mb-2.5">
@@ -486,6 +486,46 @@
                                         <span
                                             class="font-medium text-surface-900 dark:text-surface-100"
                                             >{mod.rule.name}</span
+                                        >
+                                    </div>
+                                {/if}
+
+                                <!-- Section change -->
+                                {#if mod.changedFields.includes("sectionId")}
+                                    <div
+                                        class="flex items-center gap-2 text-xs"
+                                    >
+                                        <span
+                                            class="w-14 shrink-0 text-surface-500 dark:text-surface-400 font-medium"
+                                            >Section</span
+                                        >
+                                        <span
+                                            class="font-medium line-through text-surface-400"
+                                            >{mod.previousSection?.name ??
+                                                "Unassigned"}</span
+                                        >
+                                        <svg
+                                            width="10"
+                                            height="10"
+                                            viewBox="0 0 10 10"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="1.5"
+                                            stroke-linecap="round"
+                                            class="text-surface-400 shrink-0"
+                                            ><line
+                                                x1="1"
+                                                y1="5"
+                                                x2="9"
+                                                y2="5"
+                                            /><polyline
+                                                points="6,2 9,5 6,8"
+                                            /></svg
+                                        >
+                                        <span
+                                            class="font-medium text-surface-900 dark:text-surface-100"
+                                            >{mod.currentSection?.name ??
+                                                "Unassigned"}</span
                                         >
                                     </div>
                                 {/if}
